@@ -1,4 +1,4 @@
 # Demo video script
 
-Shot list and exact clicks for the demo video (PLAN.md section 11).
+Shot list and exact clicks for the demo video.
 Written in Phase 7.

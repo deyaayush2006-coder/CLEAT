@@ -1,4 +1,4 @@
-"""Repository hygiene checks from PLAN.md section 8.1.
+"""Repository hygiene checks.
 
 These protect the hackathon rules (open-source licence, no committed secrets) and the
 Streamlit-only frontend decision. Never weaken or delete them.
