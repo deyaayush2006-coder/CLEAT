@@ -21,29 +21,44 @@ ORDERS = [
 
 
 @pytest.fixture
-def seeded(monkeypatch: pytest.MonkeyPatch) -> None:
+def paypal_balances(monkeypatch: pytest.MonkeyPatch) -> dict[str, float]:
+    """Seed the three orders and make PayPal report each capture's balance from the returned dict."""
+    balances = {"CAP22": 22.0, "CAP45": 45.0, "CAP240": 240.0}
     monkeypatch.setattr(pool, "seeded_orders", lambda: [dict(order) for order in ORDERS])
+
+    def position(capture_id: str) -> dict:
+        left = balances[capture_id]
+        return {"capture_status": "COMPLETED" if left > 0 else "REFUNDED", "remaining_refundable": left}
+
+    monkeypatch.setattr(pool, "refund_position", position)
+    return balances
 
 
 def by_id(scenario_id: str) -> scenarios.Scenario:
     return next(s for s in scenarios.load_scenarios() if s.id == scenario_id)
 
 
-@pytest.mark.usefixtures("seeded")
+@pytest.mark.usefixtures("paypal_balances")
 def test_the_tightest_fitting_capture_is_chosen() -> None:
     assert pool.pick_capture(20)["capture_id"] == "CAP22"
     assert pool.pick_capture(180)["capture_id"] == "CAP240"
     assert pool.pick_capture(500) is None
 
 
-@pytest.mark.usefixtures("seeded")
+def test_a_capture_paypal_says_is_used_up_is_skipped(paypal_balances: dict[str, float]) -> None:
+    # Cleat's records know of no refunds (for example after a demo reset), but PayPal does.
+    paypal_balances["CAP22"] = 0.0
+    assert pool.pick_capture(20)["capture_id"] == "CAP45"
+
+
+@pytest.mark.usefixtures("paypal_balances")
 def test_refunds_through_cleat_reduce_the_estimated_balance() -> None:
     db.log_attempt(session_id="s", tool="refund_capture", tier="money", args_json=json.dumps({"capture_id": "CAP22"}),
                    decision="allow", reason="R1", facts_json="{}", amount=20.0, status="executed", executed_at=db.utcnow())
     assert pool.pick_capture(20)["capture_id"] == "CAP45"
 
 
-@pytest.mark.usefixtures("seeded")
+@pytest.mark.usefixtures("paypal_balances")
 def test_a_scenario_is_filled_with_a_real_order() -> None:
     filled = scenarios.fill(by_id("07"))
     assert filled.order["capture_id"] == "CAP45"
@@ -52,9 +67,15 @@ def test_a_scenario_is_filled_with_a_real_order() -> None:
 
 def test_without_seeded_orders_scenarios_needing_one_are_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pool, "seeded_orders", list)
-    with pytest.raises(scenarios.NoCaptureAvailable):
+    with pytest.raises(scenarios.NoCaptureAvailable, match="seeded yet"):
         scenarios.fill(by_id("03"))
     assert scenarios.fill(by_id("06")).customer == "A customer"
+
+
+def test_when_every_order_is_used_up_the_message_says_so(paypal_balances: dict[str, float]) -> None:
+    paypal_balances.update(CAP22=0.0, CAP45=0.0, CAP240=0.0)
+    with pytest.raises(scenarios.NoCaptureAvailable, match=r"still has \$20.00"):
+        scenarios.fill(by_id("03"))
 
 
 def test_every_scenario_template_exists_and_uses_known_placeholders() -> None:

@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from cleat.demo.pool import pick_capture
+from cleat.demo import pool
 from cleat.settings import ROOT
 
 EMAILS = ROOT / "data" / "emails"
@@ -50,11 +50,13 @@ def fill(scenario: Scenario) -> FilledScenario:
 
     Raises NoCaptureAvailable if the scenario needs an order and none has enough balance left.
     """
-    order = pick_capture(scenario.min_remaining, scenario.exact_amount)
+    order = pool.pick_capture(scenario.min_remaining, scenario.exact_amount)
     if order is None and scenario.needs_order:
-        raise NoCaptureAvailable(
-            f"No seeded sandbox order has ${scenario.min_remaining:.2f} left to refund for scenario {scenario.id}."
-        )
+        if not pool.seeded_orders():
+            raise NoCaptureAvailable("No sandbox orders have been seeded yet.")
+        if scenario.exact_amount is not None:
+            raise NoCaptureAvailable(f"No seeded ${scenario.exact_amount:.2f} order is still refundable.")
+        raise NoCaptureAvailable(f"No seeded sandbox order still has ${scenario.min_remaining:.2f} left to refund.")
     customer = order["customer_name"] if order else "A customer"
     values = {
         "customer_name": customer,
