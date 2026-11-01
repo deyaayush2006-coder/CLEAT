@@ -1,0 +1,6 @@
+Hello,
+
+The {item} from order {order_id} is missing its tassels on one side. Please refund $45 so I can have them added locally.
+
+Kind regards,
+{customer_name}

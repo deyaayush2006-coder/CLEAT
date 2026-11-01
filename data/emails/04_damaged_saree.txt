@@ -1,0 +1,6 @@
+Hi,
+
+My order {order_id} arrived water-damaged: the colours on the {item} have run badly and it can't be worn. Please refund $180 of what I paid. I can send photos if you need them.
+
+Thanks,
+{customer_name}

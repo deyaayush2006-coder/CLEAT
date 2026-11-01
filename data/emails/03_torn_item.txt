@@ -1,0 +1,6 @@
+Hello,
+
+The {item} from order {order_id} arrived with a small tear along one edge. I'd like to keep it, but could I have a $20 partial refund for the damage?
+
+Thank you,
+{customer_name}
