@@ -146,6 +146,9 @@ def test_string_comparisons_ignore_case() -> None:
         {"field": "capture_status", "op": "gt", "value": "COMPLETED"},
         {"field": "inbound_risk", "op": "gte", "value": "extreme"},
         {"field": "tool", "op": "in", "value": "refund_capture"},
+        {"field": "capture_status", "op": "eq", "value": "COMPLETE"},
+        {"field": "tier", "op": "eq", "value": "dangerous"},
+        {"field": "tool", "op": "in", "value": ["refund_capture", "accept_dispute_claim"]},
     ],
 )
 def test_invalid_conditions_are_rejected(condition: dict[str, Any]) -> None:

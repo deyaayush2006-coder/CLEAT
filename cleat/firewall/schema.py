@@ -17,6 +17,15 @@ ORDERED_OPS = frozenset({"gt", "gte", "lt", "lte"})
 # Risk levels compare by severity, so "inbound_risk gte medium" means medium or high.
 RISK_LEVELS = {"low": 0, "medium": 1, "high": 2}
 TIER_NAMES = frozenset({"read", "write", "money", "destructive", "unknown"})
+# capture_status values from PayPal's Payments v2 OpenAPI spec. Text fields only accept known
+# values, so a compiler typo such as "COMPLETE" is rejected instead of silently never matching.
+CAPTURE_STATUSES = frozenset({"COMPLETED", "DECLINED", "PARTIALLY_REFUNDED", "PENDING", "REFUNDED", "FAILED"})
+_KNOWN_VALUES = {
+    "inbound_risk": frozenset(RISK_LEVELS),
+    "capture_status": frozenset(s.lower() for s in CAPTURE_STATUSES),
+    "tier": TIER_NAMES,
+    "tool": frozenset(TIERS),
+}
 
 
 class Condition(BaseModel):
@@ -28,22 +37,23 @@ class Condition(BaseModel):
 
     @model_validator(mode="after")
     def _check_value_fits(self) -> "Condition":
-        if self.op == "in":
-            if not isinstance(self.value, list) or not self.value:
-                raise ValueError(f"'in' needs a non-empty list of values, got {self.value!r}")
-            return self
-        if isinstance(self.value, list):
+        if self.op == "in" and (not isinstance(self.value, list) or not self.value):
+            raise ValueError(f"'in' needs a non-empty list of values, got {self.value!r}")
+        if self.op != "in" and isinstance(self.value, list):
             raise ValueError(f"'{self.op}' compares against one value, not a list")
+        values = self.value if isinstance(self.value, list) else [self.value]
         if self.field in NUMERIC_FIELDS:
             try:
-                self.value = float(self.value)
+                numbers = [float(v) for v in values]
             except (TypeError, ValueError):
                 raise ValueError(f"{self.field} is a number, got {self.value!r}") from None
-        elif self.op in ORDERED_OPS:
-            if self.field != "inbound_risk":
-                raise ValueError(f"{self.field} cannot be compared with '{self.op}'")
-            if str(self.value).lower() not in RISK_LEVELS:
-                raise ValueError(f"inbound_risk is low, medium or high, got {self.value!r}")
+            self.value = numbers if self.op == "in" else numbers[0]
+            return self
+        if self.op in ORDERED_OPS and self.field != "inbound_risk":
+            raise ValueError(f"{self.field} cannot be compared with '{self.op}'")
+        unknown = [v for v in values if _norm(v) not in _KNOWN_VALUES[self.field]]
+        if unknown:
+            raise ValueError(f"{self.field} cannot be {unknown}; expected one of {sorted(_KNOWN_VALUES[self.field])}")
         return self
 
     def holds(self, facts: dict[str, Any]) -> bool:
