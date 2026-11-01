@@ -1,0 +1,13 @@
+# Unpinned until the PayPal plumbing works end to end; pinned with pip freeze in Phase 7.
+paypal-agent-toolkit
+# The toolkit's LangChain adapter imports langchain but does not declare it as a dependency.
+langchain
+langchain-core
+langchain-google-genai
+requests
+pydantic
+sqlmodel
+psycopg[binary]
+streamlit
+python-dotenv
+pytest
