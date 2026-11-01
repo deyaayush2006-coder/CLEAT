@@ -1,13 +1,18 @@
 """Picks sandbox captures that still have enough refundable balance for a scenario,
 so the hosted demo keeps working after many runs.
 
-Balances here are estimates from refunds made through Cleat. They only choose which order to
-use; the firewall still fetches the real balance from PayPal before deciding anything.
+Cleat's own records only rank the candidates: they miss refunds made elsewhere and are
+wiped by a demo reset. The chosen capture's real balance is confirmed with PayPal.
 """
 
 import json
 from typing import Any
 
+import requests
+
+from cleat.firewall.engine import REFUNDABLE_STATUSES
+from cleat.firewall.facts import refund_position
+from cleat.paypal.rest import PayPalError
 from cleat.settings import ROOT
 from cleat.store import db
 
@@ -20,22 +25,31 @@ def seeded_orders() -> list[dict[str, Any]]:
 
 
 def pick_capture(min_remaining: float = 0.0, exact_amount: float | None = None) -> dict[str, Any] | None:
-    """Return the seeded order with the smallest estimated balance that still covers `min_remaining`.
+    """Return a seeded order whose capture can still refund `min_remaining`, or None.
 
-    Choosing the tightest fit keeps the large captures free for the scenarios that need them.
+    Candidates are tried tightest fit first, which keeps the large captures free for the
+    scenarios that need them. Read-only scenarios (no minimum, no exact amount) skip the
+    PayPal check because any real order will do.
     """
-    refunded = db.refunded_by_capture()
-    best: dict[str, Any] | None = None
-    best_left = 0.0
+    refunded_here = db.refunded_by_capture()
+    candidates = []
     for order in seeded_orders():
-        if order.get("capture_status") != "COMPLETED":
-            continue
         paid = float(order["amount"])
         if exact_amount is not None and abs(paid - exact_amount) > 0.005:
             continue
-        left = round(paid - refunded.get(order["capture_id"], 0.0), 2)
-        if left + 0.005 < min_remaining:
+        # An upper bound on the real balance, because PayPal may know of more refunds than Cleat does.
+        estimate = round(paid - refunded_here.get(order["capture_id"], 0.0), 2)
+        if estimate + 0.005 >= min_remaining:
+            candidates.append((estimate, order))
+    candidates.sort(key=lambda pair: pair[0])
+
+    if min_remaining <= 0 and exact_amount is None:
+        return candidates[0][1] if candidates else None
+    for _, order in candidates:
+        try:
+            position = refund_position(order["capture_id"])
+        except (PayPalError, requests.RequestException, KeyError, ValueError):
             continue
-        if best is None or left < best_left:
-            best, best_left = order, left
-    return best
+        if position["capture_status"] in REFUNDABLE_STATUSES and position["remaining_refundable"] + 0.005 >= max(min_remaining, 0.01):
+            return order
+    return None

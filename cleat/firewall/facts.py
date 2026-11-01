@@ -41,25 +41,33 @@ def gather_facts(tool: str, tier: str, args: dict[str, Any], context: CallContex
     return facts
 
 
-def _refund_facts(args: dict[str, Any]) -> dict[str, Any]:
-    amount = round(float(args["amount"]), 2)
-    capture_id = str(args["capture_id"])
+def refund_position(capture_id: str) -> dict[str, Any]:
+    """Return what PayPal says about a capture now: amount paid, status, refunds and what is left."""
     capture = rest.get_capture(capture_id)
     captured = round(float(capture.data["amount"]["value"]), 2)
     order_id = _parent_order_id(capture.data)
     refunded = _refunded_total(order_id, capture_id)
     return {
-        "amount": amount,
-        "currency": capture.data["amount"]["currency_code"],
         "capture_id": capture_id,
         "order_id": order_id,
+        "currency": capture.data["amount"]["currency_code"],
         "capture_status": capture.data["status"],
         "captured_amount": captured,
         "refunded_total": refunded,
         "remaining_refundable": round(captured - refunded, 2),
+        "paypal_debug_id": capture.debug_id,
+    }
+
+
+def _refund_facts(args: dict[str, Any]) -> dict[str, Any]:
+    amount = round(float(args["amount"]), 2)
+    position = refund_position(str(args["capture_id"]))
+    captured = position["captured_amount"]
+    return {
+        **position,
+        "amount": amount,
         "pct_of_capture": round(amount / captured * 100, 1) if captured else None,
         "window_total_24h": round(db.refunded_last_24h() + amount, 2),
-        "paypal_debug_id": capture.debug_id,
     }
 
 
