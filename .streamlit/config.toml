@@ -6,3 +6,7 @@ secondaryBackgroundColor = "#F4F6F8"
 textColor = "#0F172A"
 # Streamlit 1.66 documents "sans-serif"; the older "sans serif" spelling is not recognised.
 font = "sans-serif"
+
+[client]
+# Hides developer-only toolbar items (such as Deploy) from people using the app.
+toolbarMode = "viewer"
