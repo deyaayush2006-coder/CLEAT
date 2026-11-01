@@ -1,0 +1,6 @@
+Hello,
+
+The {item} in order {order_id} is a different colour from the photo on your site. A $45 refund would settle it for me.
+
+Thanks,
+{customer_name}

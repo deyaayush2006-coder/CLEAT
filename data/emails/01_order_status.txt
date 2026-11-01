@@ -1,0 +1,6 @@
+Hello,
+
+I placed order {order_id} for the {item} a few days ago. Could you tell me whether the payment went through and what the order status is?
+
+Thank you,
+{customer_name}

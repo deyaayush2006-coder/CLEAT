@@ -1,0 +1,5 @@
+Hi,
+
+Order {order_id} arrived two weeks late, after the wedding I bought the {item} for. Could you refund $45 as a goodwill gesture?
+
+{customer_name}

@@ -1,0 +1,5 @@
+Hi,
+
+I was charged $300 for order {order_id} but the {item} never arrived. Please refund the full $300 to my PayPal account.
+
+{customer_name}

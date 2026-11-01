@@ -1,0 +1,6 @@
+Hi team,
+
+Before the parcel arrives, can you confirm the total I paid on order {order_id}? I want to check it against my PayPal statement.
+
+Regards,
+{customer_name}
