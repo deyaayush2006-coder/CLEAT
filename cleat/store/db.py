@@ -17,6 +17,11 @@ from cleat.firewall.schema import Rule
 from cleat.settings import DATABASE_URL, ROOT
 
 
+# Streamlit re-imports edited modules while it runs; without this the tables would be
+# declared twice on the shared metadata and the app would fail to load.
+_REDEFINABLE = {"extend_existing": True}
+
+
 def utcnow() -> datetime:
     """Return the current time in UTC."""
     return datetime.now(UTC)
@@ -24,6 +29,8 @@ def utcnow() -> datetime:
 
 class Attempt(SQLModel, table=True):
     """One tool call the agent tried, the firewall's decision and what happened next."""
+
+    __table_args__ = _REDEFINABLE
 
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utcnow, index=True)
@@ -47,6 +54,8 @@ class Attempt(SQLModel, table=True):
 class Approval(SQLModel, table=True):
     """A held action waiting for a human, with its frozen arguments and their hash."""
 
+    __table_args__ = _REDEFINABLE
+
     id: str = Field(primary_key=True)
     attempt_id: int = Field(foreign_key="attempt.id")
     created_at: datetime = Field(default_factory=utcnow, index=True)
@@ -63,6 +72,8 @@ class Approval(SQLModel, table=True):
 class PolicySet(SQLModel, table=True):
     """One saved version of the policy: the English text and the rules compiled from it."""
 
+    __table_args__ = _REDEFINABLE
+
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utcnow)
     source_text: str
@@ -72,6 +83,8 @@ class PolicySet(SQLModel, table=True):
 
 class AgentRun(SQLModel, table=True):
     """One agent run on a customer message, kept so the Inbox can show it again."""
+
+    __table_args__ = _REDEFINABLE
 
     id: str = Field(primary_key=True)
     created_at: datetime = Field(default_factory=utcnow, index=True)
