@@ -130,6 +130,11 @@ def capture_order(order_id: str) -> CapturedOrder:
     return CapturedOrder(order_id=resp.data["id"], capture_id=capture["id"], capture_status=capture["status"], response=resp)
 
 
+def get_order(order_id: str) -> PayPalResponse:
+    """Return an order's details, including every capture and refund made against it."""
+    return _call("GET", f"/v2/checkout/orders/{_checked_id(order_id)}")
+
+
 def get_capture(capture_id: str) -> PayPalResponse:
     """Return a captured payment's details: amount, status and links."""
     return _call("GET", f"/v2/payments/captures/{_checked_id(capture_id)}")
