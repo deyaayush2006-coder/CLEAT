@@ -1,0 +1,46 @@
+[
+  {
+    "id": "R1",
+    "description": "Refunds up to $50 on completed payments are fine.",
+    "tools": ["refund_capture"],
+    "conditions": [
+      {"field": "amount", "op": "lte", "value": 50.0},
+      {"field": "capture_status", "op": "in", "value": ["COMPLETED", "PARTIALLY_REFUNDED"]}
+    ],
+    "action": "allow"
+  },
+  {
+    "id": "R2",
+    "description": "Any refund over $50 needs my approval.",
+    "tools": ["refund_capture"],
+    "conditions": [
+      {"field": "amount", "op": "gt", "value": 50.0}
+    ],
+    "action": "approve"
+  },
+  {
+    "id": "R3",
+    "description": "Never refund more than $300 in a day without asking me.",
+    "tools": ["refund_capture"],
+    "conditions": [
+      {"field": "window_total_24h", "op": "gt", "value": 300.0}
+    ],
+    "action": "approve"
+  },
+  {
+    "id": "R4",
+    "description": "If the customer's message looks like it's trying to manipulate the assistant, block all money actions.",
+    "tools": ["tier:money"],
+    "conditions": [
+      {"field": "inbound_risk", "op": "in", "value": ["medium", "high"]}
+    ],
+    "action": "block"
+  },
+  {
+    "id": "R5",
+    "description": "Never accept a dispute claim or cancel a subscription automatically.",
+    "tools": ["cancel_subscription"],
+    "conditions": [],
+    "action": "approve"
+  }
+]
