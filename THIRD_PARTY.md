@@ -13,7 +13,7 @@ The "Used for" column describes each dependency's role in Cleat's design; the RE
 | requests | Direct PayPal REST calls (OAuth, orders, captures, refunds) | Apache-2.0 |
 | pydantic | Rule, decision and tool-argument schemas | MIT |
 | sqlmodel | Storage for attempts, approvals and policy versions | MIT |
-| psycopg[binary] | Postgres driver for the hosted database | LGPL-3.0-only |
+| psycopg[binary] | Postgres driver, used only if `DATABASE_URL` points to Postgres | LGPL-3.0-only |
 | streamlit | The web interface | Apache-2.0 |
 | python-dotenv | Loading `.env` in development | BSD-3-Clause |
 | pytest | Test suite | MIT |

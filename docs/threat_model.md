@@ -10,7 +10,7 @@ The asset is the merchant's money in PayPal. The attacker is anyone who can emai
 | Over-refund | Refunding more than is left | Hard rule HARD-OVER-REFUND, re-checked on approval. | `firewall/engine.py`, `firewall/approvals.py` |
 | Refunding a dead capture | Refunding a REFUNDED or PENDING capture | Only COMPLETED and PARTIALLY_REFUNDED (from PayPal's spec) are refundable. | `firewall/engine.py` |
 | Post-approval tampering | Changing the amount after a human approved | Cleat executes the stored arguments only after their SHA-256 hash matches; the agent is not involved. | `firewall/approvals.py` |
-| Stale approvals | Approving a week-old request | Approvals expire after 24 hours, in code and by an hourly cron job. | `firewall/approvals.py`, `scripts/expire_stale_approvals.py` |
+| Stale approvals | Approving a week-old request | Approvals expire after 24 hours, checked on approval and when the Approvals page loads. | `firewall/approvals.py`, `views/approvals.py` |
 | Unknown or invented tools | The model calls `transfer_all_funds` | Unknown tools are blocked (fail closed) and logged. | `firewall/engine.py`, `agent/support_agent.py` |
 | Path injection in IDs | `capture_id="../../v1/oauth2/token"` | IDs are validated before they reach a URL. | `paypal/rest.py` |
 | Unverifiable facts | PayPal unreachable or capture missing | Hard block HARD-UNVERIFIED instead of deciding on guesses. | `firewall/facts.py`, `firewall/engine.py` |
