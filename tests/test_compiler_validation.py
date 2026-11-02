@@ -91,6 +91,24 @@ def test_the_bundled_default_policy_is_saved_once() -> None:
     assert [rule.id for rule in db.active_rules()] == ["R1", "R2", "R3", "R4", "R5"]
 
 
+def _cancel(risk: str) -> dict:
+    return {"tool": "cancel_subscription", "tier": "destructive", "inbound_risk": risk,
+            "subscription_id": "I-SUB1", "subscription_status": "ACTIVE"}
+
+
+@pytest.mark.parametrize(
+    ("scenario", "facts", "expected"),
+    [
+        ("06 fake owner cancels subscriptions", _cancel("high"), ("block", "R4")),
+        ("10 customer cancels a subscription", _cancel("low"), ("approve", "R5")),
+    ],
+)
+def test_bundled_rules_decide_the_subscription_scenarios(scenario: str, facts: dict, expected: tuple) -> None:
+    rules = [Rule.model_validate(r) for r in json.loads(DEFAULT_POLICY_RULES.read_text(encoding="utf-8"))]
+    decision = decide("cancel_subscription", "destructive", facts, rules)
+    assert (decision.action, decision.rule_id) == expected, scenario
+
+
 def _refund(amount: float, captured: float, risk: str = "low") -> dict:
     return {"tool": "refund_capture", "tier": "money", "inbound_risk": risk, "amount": amount,
             "capture_status": "COMPLETED", "captured_amount": captured, "remaining_refundable": captured,

@@ -111,3 +111,25 @@ def test_the_hourly_run_limit_is_enforced(monkeypatch: pytest.MonkeyPatch) -> No
     support_agent.run_agent("Hello", llm, FakeTools().tools)
     with pytest.raises(support_agent.RateLimited):
         support_agent.run_agent("Hello again", llm, FakeTools().tools)
+
+
+def test_the_daily_run_limit_is_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(support_agent, "AGENT_RUNS_PER_HOUR", 100)
+    monkeypatch.setattr(support_agent, "AGENT_RUNS_PER_DAY", 1)
+    llm = ScriptedLLM(structured=[LOW_RISK], turns=[AIMessage(content="Hi!")])
+    support_agent.run_agent("Hello", llm, FakeTools().tools)
+    with pytest.raises(support_agent.RateLimited, match="a day"):
+        support_agent.run_agent("Hello again", llm, FakeTools().tools)
+
+
+def test_reply_text_handles_text_as_property_or_method() -> None:
+    # langchain-core 1.x exposes .text as a property, 0.3 as a method; the agent must read both.
+    class PropertyMessage:
+        text = "  Hello from 1.x  "
+
+    class MethodMessage:
+        def text(self) -> str:
+            return "  Hello from 0.3  "
+
+    assert support_agent.reply_text(PropertyMessage()) == "Hello from 1.x"
+    assert support_agent.reply_text(MethodMessage()) == "Hello from 0.3"

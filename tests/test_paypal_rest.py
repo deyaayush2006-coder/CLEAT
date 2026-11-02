@@ -166,3 +166,41 @@ def test_amounts_are_formatted_to_two_decimals(amount: object, expected: str) ->
 def test_non_positive_or_invalid_amounts_are_refused(amount: object) -> None:
     with pytest.raises(ValueError):
         rest.format_amount(amount)
+
+
+def test_create_subscription_returns_the_approval_link(paypal: FakePayPal) -> None:
+    link = "https://www.sandbox.paypal.com/webapps/billing/subscriptions?ba_token=BA-1"
+    paypal.responses = [FakeResponse(201, {"id": "I-SUB1", "status": "APPROVAL_PENDING",
+                                           "links": [{"rel": "approve", "href": link}, {"rel": "self", "href": "x"}]})]
+    created = rest.create_subscription("P-PLAN1", "Meera", "Chatterjee", "meera@example.com", "Kolkata Handloom Co.")
+    assert (created.subscription_id, created.approve_url) == ("I-SUB1", link)
+    call = paypal.calls[-1]
+    assert call["url"] == f"{SANDBOX}/v1/billing/subscriptions"
+    assert call["json"]["plan_id"] == "P-PLAN1"
+    assert call["json"]["subscriber"]["email_address"] == "meera@example.com"
+
+
+def test_monthly_plan_bills_the_price_every_month(paypal: FakePayPal) -> None:
+    paypal.responses = [FakeResponse(201, {"id": "P-PLAN1", "status": "ACTIVE"})]
+    rest.create_monthly_plan("PROD-1", "Monthly saree care", 12, "USD")
+    cycle = paypal.calls[-1]["json"]["billing_cycles"][0]
+    assert cycle["frequency"] == {"interval_unit": "MONTH", "interval_count": 1}
+    assert cycle["pricing_scheme"]["fixed_price"] == {"value": "12.00", "currency_code": "USD"}
+
+
+def test_cancel_subscription_accepts_paypals_empty_204(paypal: FakePayPal) -> None:
+    paypal.responses = [FakeResponse(204, None)]
+    resp = rest.cancel_subscription("I-SUB1", "No longer needed")
+    call = paypal.calls[-1]
+    assert call["url"] == f"{SANDBOX}/v1/billing/subscriptions/I-SUB1/cancel"
+    assert call["json"] == {"reason": "No longer needed"}
+    assert resp.data == {} and resp.request_id
+
+
+def test_a_missing_subscription_raises_with_paypals_issue(paypal: FakePayPal) -> None:
+    body = {"name": "RESOURCE_NOT_FOUND", "message": "The specified resource does not exist.", "debug_id": "nf1",
+            "details": [{"issue": "INVALID_RESOURCE_ID", "description": "Requested resource ID was not found."}]}
+    paypal.responses = [FakeResponse(404, body)]
+    with pytest.raises(rest.PayPalError) as caught:
+        rest.get_subscription("I-NOPE")
+    assert (caught.value.status_code, caught.value.issue) == (404, "INVALID_RESOURCE_ID")

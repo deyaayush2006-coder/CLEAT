@@ -3,6 +3,7 @@ never from numbers the agent asserts (invariant I-2).
 
 For a refund, the capture's amount and status come from Payments v2 and its refund
 history from the parent order in Orders v2, so refunds made outside Cleat still count.
+For a cancellation, the subscription's status comes from Subscriptions v1.
 """
 
 from dataclasses import dataclass
@@ -38,7 +39,23 @@ def gather_facts(tool: str, tier: str, args: dict[str, Any], context: CallContex
             facts.update(_refund_facts(args))
         except (rest.PayPalError, requests.RequestException, KeyError, TypeError, ValueError) as e:
             facts["verification_error"] = str(e) or type(e).__name__
+    elif tool == "cancel_subscription":
+        try:
+            facts.update(subscription_facts(str(args["subscription_id"])))
+        except (rest.PayPalError, requests.RequestException, KeyError, TypeError, ValueError) as e:
+            facts["verification_error"] = str(e) or type(e).__name__
     return facts
+
+
+def subscription_facts(subscription_id: str) -> dict[str, Any]:
+    """Return what PayPal says about a subscription now: its status and plan."""
+    sub = rest.get_subscription(subscription_id)
+    return {
+        "subscription_id": subscription_id,
+        "subscription_status": sub.data["status"],
+        "plan_id": sub.data.get("plan_id"),
+        "paypal_debug_id": sub.debug_id,
+    }
 
 
 def refund_position(capture_id: str) -> dict[str, Any]:

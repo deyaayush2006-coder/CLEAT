@@ -55,4 +55,8 @@ PAYPAL_ENV = os.getenv("PAYPAL_ENV")
 check_sandbox(PAYPAL_ENV)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip() or "sqlite:///data/cleat.db"
-AGENT_RUNS_PER_HOUR = _int_setting("AGENT_RUNS_PER_HOUR", 40)
+# Each agent run makes about 5 Gemini calls (1 injection check + up to 4 agent turns).
+# The daily cap keeps the hosted demo under Gemini's requests-per-day quota; the hourly cap
+# stops one visitor from spending the whole day's budget at once.
+AGENT_RUNS_PER_HOUR = _int_setting("AGENT_RUNS_PER_HOUR", 10)
+AGENT_RUNS_PER_DAY = _int_setting("AGENT_RUNS_PER_DAY", 40)
