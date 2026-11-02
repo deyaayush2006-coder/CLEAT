@@ -1,5 +1,5 @@
-"""Picks sandbox captures that still have enough refundable balance for a scenario,
-so the hosted demo keeps working after many runs.
+"""Picks sandbox captures that still have enough refundable balance for a scenario, and
+subscriptions that are still active, so the hosted demo keeps working after many runs.
 
 Cleat's own records only rank the candidates: they miss refunds made elsewhere and are
 wiped by a demo reset. The chosen capture's real balance is confirmed with PayPal.
@@ -10,13 +10,14 @@ from typing import Any
 
 import requests
 
-from cleat.firewall.engine import REFUNDABLE_STATUSES
-from cleat.firewall.facts import refund_position
+from cleat.firewall.engine import CANCELLABLE_STATUSES, REFUNDABLE_STATUSES
+from cleat.firewall.facts import refund_position, subscription_facts
 from cleat.paypal.rest import PayPalError
 from cleat.settings import ROOT
 from cleat.store import db
 
 FIXTURES = ROOT / "data" / "fixtures" / "orders.json"
+SUBSCRIPTION_FIXTURES = ROOT / "data" / "fixtures" / "subscriptions.json"
 
 
 def seeded_orders() -> list[dict[str, Any]]:
@@ -52,4 +53,30 @@ def pick_capture(min_remaining: float = 0.0, exact_amount: float | None = None) 
             continue
         if position["capture_status"] in REFUNDABLE_STATUSES and position["remaining_refundable"] + 0.005 >= max(min_remaining, 0.01):
             return order
+    return None
+
+
+def seeded_subscriptions() -> list[dict[str, Any]]:
+    """Return the subscriptions recorded by scripts/seed_orders.py, or none if it has not been run."""
+    if not SUBSCRIPTION_FIXTURES.exists():
+        return []
+    return json.loads(SUBSCRIPTION_FIXTURES.read_text(encoding="utf-8")).get("subscriptions", [])
+
+
+def pick_subscription() -> dict[str, Any] | None:
+    """Return a seeded subscription PayPal says can still be cancelled, or None.
+
+    Subscriptions Cleat has already cancelled, or holds a pending cancellation for, are skipped,
+    so two held cancellations never target the same subscription.
+    """
+    taken = db.subscriptions_in_use()
+    for sub in seeded_subscriptions():
+        if sub["subscription_id"] in taken:
+            continue
+        try:
+            status = subscription_facts(sub["subscription_id"])["subscription_status"]
+        except (PayPalError, requests.RequestException, KeyError, ValueError):
+            continue
+        if status in CANCELLABLE_STATUSES:
+            return sub
     return None

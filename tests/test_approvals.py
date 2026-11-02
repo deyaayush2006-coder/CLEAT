@@ -11,7 +11,8 @@ from langchain_core.tools import StructuredTool
 from cleat.firewall import approvals
 from cleat.firewall.facts import CallContext
 from cleat.firewall.interceptor import Firewall
-from cleat.paypal.tools import RefundCaptureArgs
+from cleat.paypal import rest
+from cleat.paypal.tools import CancelSubscriptionArgs, RefundCaptureArgs
 from cleat.store import db
 
 pytestmark = pytest.mark.usefixtures("memory_db")
@@ -98,3 +99,53 @@ def test_expire_older_than_only_expires_stale_pending_approvals(fake_paypal: Cal
     fresh_id, _ = hold_refund(190)
     assert approvals.expire_older_than(24) == 1
     assert (db.get_approval(stale_id).status, db.get_approval(fresh_id).status) == ("expired", "pending")
+
+
+class RecordingCancelTool:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+        self.tool = StructuredTool.from_function(
+            func=self._run, name="cancel_subscription", description="Cancel a subscription.",
+            args_schema=CancelSubscriptionArgs,
+        )
+
+    def _run(self, **kwargs: Any) -> str:
+        self.calls.append(kwargs)
+        return json.dumps({"subscription_id": kwargs["subscription_id"], "status": "CANCELLED"})
+
+
+@pytest.fixture
+def subscription_status(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    """Make PayPal report I-SUB1 with the status held in the returned dict."""
+    state = {"status": "ACTIVE"}
+
+    def get_subscription(subscription_id: str) -> rest.PayPalResponse:
+        return rest.PayPalResponse({"id": subscription_id, "status": state["status"]}, None, "debug-sub")
+
+    monkeypatch.setattr(rest, "get_subscription", get_subscription)
+    return state
+
+
+def hold_cancellation() -> tuple[str, RecordingCancelTool]:
+    """Hold a cancellation (no rules, so destructive defaults to approve) and return the approval ID."""
+    raw = RecordingCancelTool()
+    Firewall([], CallContext(session_id="s1")).guard(raw.tool).invoke({"subscription_id": "I-SUB1", "reason": "Not needed"})
+    newest, _ = db.pending_approvals()[0]
+    return newest.id, raw
+
+
+@pytest.mark.usefixtures("subscription_status")
+def test_approving_a_cancellation_cancels_the_subscription() -> None:
+    approval_id, raw = hold_cancellation()
+    result = approvals.approve(approval_id, tools={"cancel_subscription": raw.tool})
+    assert raw.calls == [{"subscription_id": "I-SUB1", "reason": "Not needed"}]
+    assert result.status == "executed"
+    assert json.loads(result.result_json)["status"] == "CANCELLED"
+
+
+def test_a_subscription_cancelled_meanwhile_is_not_cancelled_again(subscription_status: dict[str, str]) -> None:
+    approval_id, raw = hold_cancellation()
+    subscription_status["status"] = "CANCELLED"  # cancelled elsewhere while the request waited
+    result = approvals.approve(approval_id, tools={"cancel_subscription": raw.tool})
+    assert raw.calls == []
+    assert result.status == "failed" and "CANCELLED" in result.result_json

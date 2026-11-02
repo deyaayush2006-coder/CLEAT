@@ -18,7 +18,7 @@ from cleat.agent.prompts import STORE_NAME, SUPPORT_AGENT
 from cleat.firewall.facts import CallContext
 from cleat.firewall.injection import InjectionVerdict, classify
 from cleat.firewall.interceptor import Firewall
-from cleat.settings import AGENT_RUNS_PER_HOUR
+from cleat.settings import AGENT_RUNS_PER_DAY, AGENT_RUNS_PER_HOUR
 from cleat.store import db
 
 MAX_STEPS = 8
@@ -29,7 +29,7 @@ FALLBACK_REPLY = (
 
 
 class RateLimited(Exception):
-    """The hosted demo's hourly agent-run limit has been reached."""
+    """The hosted demo's hourly or daily agent-run limit has been reached."""
 
 
 @dataclass
@@ -51,10 +51,10 @@ def run_agent(
 ) -> AgentResult:
     """Classify the message, then let the agent work on it through the firewall.
 
-    Raises RateLimited when AGENT_RUNS_PER_HOUR runs have started in the last hour.
+    Raises RateLimited when AGENT_RUNS_PER_HOUR runs have started in the last hour, or
+    AGENT_RUNS_PER_DAY in the last 24 hours.
     """
-    if db.runs_in_last_hour() >= AGENT_RUNS_PER_HOUR:
-        raise RateLimited(f"The demo allows {AGENT_RUNS_PER_HOUR} agent runs per hour. Please try again later.")
+    check_run_limits()
     session_id = uuid.uuid4().hex[:12]
     db.start_run(session_id, message, customer)
     try:
@@ -72,6 +72,21 @@ def run_agent(
     return result
 
 
+def check_run_limits() -> None:
+    """Raise RateLimited, with a message a visitor can act on, if a demo run limit is reached."""
+    if db.runs_in_last(hours=24) >= AGENT_RUNS_PER_DAY:
+        raise RateLimited(
+            f"Demo limit reached: this hosted demo allows {AGENT_RUNS_PER_DAY} agent runs a day, to stay within "
+            "its free AI quota. Earlier runs are still on the Overview, Audit Log and Approvals pages. "
+            "Please come back tomorrow, or run Cleat locally with your own keys (see the README)."
+        )
+    if db.runs_in_last_hour() >= AGENT_RUNS_PER_HOUR:
+        raise RateLimited(
+            f"Demo limit reached: this hosted demo allows {AGENT_RUNS_PER_HOUR} agent runs an hour. "
+            "Earlier runs are still on the Overview, Audit Log and Approvals pages. Please try again in a little while."
+        )
+
+
 def _run(session_id: str, message: str, llm: Any, tools: Sequence[BaseTool], customer: str | None) -> AgentResult:
     verdict = classify(message, llm)
     firewall = Firewall(db.active_rules(), CallContext(session_id=session_id, inbound_risk=verdict.risk, customer=customer))
@@ -87,7 +102,7 @@ def _run(session_id: str, message: str, llm: Any, tools: Sequence[BaseTool], cus
         response = model.invoke(messages)
         messages.append(response)
         if not response.tool_calls:
-            reply = response.text.strip()
+            reply = reply_text(response)
             break
         for call in response.tool_calls:
             messages.append(ToolMessage(content=_call_tool(firewall, guarded, call), tool_call_id=call["id"]))
@@ -98,6 +113,18 @@ def _run(session_id: str, message: str, llm: Any, tools: Sequence[BaseTool], cus
         steps=firewall.steps,
         model_turns=turns,
     )
+
+
+def reply_text(message: BaseMessage) -> str:
+    """Return a chat message's text, stripped.
+
+    `.text` is a property in langchain-core 1.x but a method in 0.3, so both are handled.
+    The 1.x value is a str that is also callable (calling it is deprecated), so check str first.
+    """
+    text = message.text
+    if not isinstance(text, str) and callable(text):
+        text = text()
+    return str(text or "").strip()
 
 
 def _call_tool(firewall: Firewall, guarded: dict[str, BaseTool], call: dict[str, Any]) -> str:

@@ -6,7 +6,7 @@ from typing import Any
 import streamlit as st
 
 from cleat.agent.support_agent import RateLimited, run_agent
-from cleat.demo.scenarios import NoCaptureAvailable, fill, load_scenarios
+from cleat.demo.scenarios import ScenarioUnavailable, fill, load_scenarios
 from cleat.firewall.injection import InjectionVerdict
 from cleat.store import db
 from cleat.ui.components import (
@@ -32,7 +32,7 @@ def load_scenario() -> None:
     scenario = SCENARIOS[st.session_state["scenario_id"]]
     try:
         filled = fill(scenario)
-    except NoCaptureAvailable as error:
+    except ScenarioUnavailable as error:
         st.session_state.update(message="", customer="", fill_error=str(error))
         return
     st.session_state.update(message=filled.message, customer=filled.customer, fill_error=None)
@@ -45,6 +45,9 @@ def describe_action(tool: str, args: dict[str, Any]) -> str:
         return f"Refund {money(float(args.get('amount', 0)))} on capture `{args.get('capture_id')}`{reason}"
     if tool == "get_order_details":
         return f"Look up order `{args.get('order_id')}`"
+    if tool == "cancel_subscription":
+        reason = f" ({args['reason']})" if args.get("reason") else ""
+        return f"Cancel subscription `{args.get('subscription_id')}`{reason}"
     details = ", ".join(f"{key}: {value}" for key, value in args.items())
     return f"`{tool}` with {details}" if details else f"`{tool}`"
 
@@ -63,6 +66,13 @@ def show_facts(facts: dict[str, Any]) -> None:
         paypal_ref("Order", facts.get("order_id"))
         paypal_ref("Capture", facts.get("capture_id"))
         paypal_ref("PayPal debug ID (capture lookup)", facts.get("paypal_debug_id"))
+    elif "subscription_status" in facts:
+        st.caption(
+            f"Subscription status from PayPal: **{facts['subscription_status']}**. "
+            f"Injection risk: **{facts.get('inbound_risk')}**."
+        )
+        paypal_ref("Subscription", facts.get("subscription_id"))
+        paypal_ref("PayPal debug ID (subscription lookup)", facts.get("paypal_debug_id"))
     else:
         st.caption(f"Tier: **{facts.get('tier')}**. Injection risk: **{facts.get('inbound_risk')}**.")
 
@@ -72,6 +82,11 @@ def show_result(result: Any) -> None:
     if isinstance(result, dict) and result.get("refund_id"):
         paypal_ref("Refund", result["refund_id"])
         st.caption(f"Refund status: **{result.get('status')}**")
+        paypal_ref("PayPal-Request-Id", result.get("paypal_request_id"))
+        paypal_ref("PayPal debug ID", result.get("paypal_debug_id"))
+    elif isinstance(result, dict) and result.get("subscription_id"):
+        paypal_ref("Subscription", result["subscription_id"])
+        st.caption(f"Subscription status from PayPal after the call: **{result.get('status')}**")
         paypal_ref("PayPal-Request-Id", result.get("paypal_request_id"))
         paypal_ref("PayPal debug ID", result.get("paypal_debug_id"))
     elif isinstance(result, dict) and "status" in result:
@@ -153,7 +168,7 @@ with left:
         st.caption(f"Expected: **{DECISION_LABELS[scenario.expected]}**. {scenario.shows}")
         if st.session_state.get("fill_error"):
             st.warning(
-                f"{st.session_state['fill_error']} Seed sandbox orders with `python -m scripts.seed_orders`, "
+                f"{st.session_state['fill_error']} Seed sandbox data with `python -m scripts.seed_orders`, "
                 "or paste your own ticket instead."
             )
             st.button("Try again", on_click=load_scenario)
@@ -171,8 +186,8 @@ with left:
 
                 result = run_agent(message, get_llm(), raw_tools(), customer=customer)
             except RateLimited as error:
-                status.update(label="Rate limit reached", state="error")
-                st.warning(str(error))
+                status.update(label="Demo limit reached", state="error")
+                st.info(str(error), icon=":material/hourglass_top:")
             except Exception as error:
                 status.update(label="The run failed", state="error")
                 error_state(friendly_error(error))

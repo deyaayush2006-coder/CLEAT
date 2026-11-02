@@ -47,6 +47,8 @@ DEFAULT_POLICY = [SMALL_REFUNDS_OK, BIG_REFUNDS_NEED_ME, DAILY_CAP, MANIPULATION
                                                 ("refund_capture", "approve"), ("cancel_subscription", "approve")])
 def test_tier_defaults_apply_when_no_rule_matches(tool: str, expected: str) -> None:
     facts = refund_facts() if tool == "refund_capture" else {"tool": tool, "tier": tier_of(tool), "inbound_risk": "low"}
+    if tool == "cancel_subscription":
+        facts["subscription_status"] = "ACTIVE"
     decision = decide(tool, tier_of(tool), facts, [])
     assert decision.action == expected
     assert decision.rule_id is None
@@ -177,3 +179,28 @@ def test_every_registered_tool_has_a_tier(monkeypatch: pytest.MonkeyPatch) -> No
     finally:
         tools.raw_tools.cache_clear()
     assert names == set(TIERS)
+
+
+def cancel_facts(status: str = "ACTIVE", risk: str = "low") -> dict:
+    return {"tool": "cancel_subscription", "tier": "destructive", "inbound_risk": risk,
+            "subscription_id": "I-SUB1", "subscription_status": status}
+
+
+MANIPULATION_BLOCKS_CANCELLING = rule("R4", "block", ("inbound_risk", "in", ["medium", "high"]),
+                                      tools=("tier:money", "tier:destructive"))
+NEVER_CANCEL_AUTOMATICALLY = rule("R5", "approve", tools=("cancel_subscription",))
+
+
+@pytest.mark.parametrize("status", ["CANCELLED", "EXPIRED", "APPROVAL_PENDING", None])
+def test_a_subscription_paypal_says_cannot_be_cancelled_is_hard_blocked(status: str | None) -> None:
+    allow_all = Rule(id="A", description="Allow", tools=["cancel_subscription"], action="allow")
+    decision = decide("cancel_subscription", "destructive", cancel_facts(status=status), [allow_all])
+    assert (decision.action, decision.rule_id) == ("block", "HARD-NOT-CANCELLABLE")
+
+
+def test_a_genuine_cancellation_is_held_and_a_manipulative_one_is_blocked() -> None:
+    rules = [MANIPULATION_BLOCKS_CANCELLING, NEVER_CANCEL_AUTOMATICALLY]
+    held = decide("cancel_subscription", "destructive", cancel_facts(), rules)
+    blocked = decide("cancel_subscription", "destructive", cancel_facts(risk="high"), rules)
+    assert (held.action, held.rule_id) == ("approve", "R5")
+    assert (blocked.action, blocked.rule_id) == ("block", "R4")

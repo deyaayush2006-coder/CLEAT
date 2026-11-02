@@ -50,7 +50,7 @@ the options comma-separated ("medium,high").
 Tools and their tiers:
 {_TOOL_LIST}
 
-"Money actions" means tier:money. If a sentence mentions an action no tool can perform, leave that \
+"Money actions" means tier:money. "Cancellations" means tier:destructive. If a sentence mentions an action no tool can perform, leave that \
 part out. Return every rule the policy implies and nothing it does not say."""
 
 

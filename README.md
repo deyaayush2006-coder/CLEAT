@@ -1,5 +1,7 @@
 # Cleat
 
+[![tests](https://github.com/deyaayush2006-coder/CLEAT/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/deyaayush2006-coder/CLEAT/actions/workflows/tests.yml)
+
 **Your AI support agent can be talked into anything. Your PayPal can't.**
 
 Cleat is a spending firewall for AI customer-support agents that can issue PayPal refunds. Every PayPal action the agent attempts is checked against facts fetched from PayPal itself, decided by a deterministic policy engine, and then allowed, held for a human, or blocked. Every attempt is logged.
@@ -35,17 +37,20 @@ flowchart LR
     E --> L[(Audit log)]
 ```
 
-Hard rules no policy can override: refunds above PayPal's remaining refundable balance, refunds on non-refundable captures, facts PayPal cannot confirm, and unknown tools are always blocked. Otherwise the most restrictive matching rule wins (block > approve > allow). The LLM never makes the decision.
+Hard rules no policy can override: refunds above PayPal's remaining refundable balance, refunds on non-refundable captures, cancelling a subscription PayPal does not report as active, facts PayPal cannot confirm, and unknown tools are always blocked. Otherwise the most restrictive matching rule wins (block > approve > allow). The LLM never makes the decision.
 
 ## How PayPal is used
 
 | What | API | Code |
 |---|---|---|
-| Order lookups, order creation, capture, invoices, subscriptions (20 tools) | PayPal Agent Toolkit (LangChain) | `cleat/paypal/tools.py` |
-| Refund a capture (the toolkit has no refund tool) | `POST /v2/payments/captures/{id}/refund` | `cleat/paypal/rest.py` |
+| Order lookups, order creation, capture, invoices, products, plans, subscriptions (18 tools) | PayPal Agent Toolkit 1.1.0 (LangChain) | `cleat/paypal/tools.py` |
+| Refund a capture (the toolkit has no refund tool) | `POST /v2/payments/captures/{id}/refund` | `cleat/paypal/tools.py`, `cleat/paypal/rest.py` |
+| Cancel a subscription (replaces the toolkit's, which reports success as plain text and drops PayPal's debug ID) | `POST /v1/billing/subscriptions/{id}/cancel`, then `GET` to confirm | `cleat/paypal/tools.py`, `cleat/paypal/rest.py` |
 | Capture amount and status | `GET /v2/payments/captures/{id}` | `cleat/firewall/facts.py` |
 | Refund history for a capture | `GET /v2/checkout/orders/{id}` | `cleat/firewall/facts.py` |
+| Subscription status before a cancellation | `GET /v1/billing/subscriptions/{id}` | `cleat/firewall/facts.py` |
 | Demo orders | `POST /v2/checkout/orders`, `.../capture` | `scripts/seed_orders.py` |
+| Demo subscriptions | `POST /v1/catalogs/products`, `/v1/billing/plans`, `/v1/billing/subscriptions` | `scripts/seed_orders.py` |
 
 Every POST carries a unique `PayPal-Request-Id`, and PayPal's debug IDs are shown in the Inbox and Approvals pages. Cleat refuses to start unless `PAYPAL_ENV=sandbox`, and its base URL is fixed to `https://api-m.sandbox.paypal.com`.
 
@@ -65,16 +70,20 @@ Requires Python 3.11+ and a free PayPal sandbox app (Developer Dashboard → San
 python -m venv .venv && .venv\Scripts\activate      # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 copy .env.example .env                               # macOS/Linux: cp; then fill in your keys
-python -m scripts.seed_orders                        # approve each order as the sandbox buyer
+python -m scripts.seed_orders                        # approve each order and subscription as the sandbox buyer
+python -m scripts.smoke_test                         # optional: checks PayPal end to end with a $1 refund
 streamlit run app.py
 ```
+
+`requirements.txt` is a cross-platform lock file built from `requirements.in`; edit `requirements.in` and re-run the `uv pip compile` command at the top of it.
 
 ## Testing guide
 
 1. **Inbox:** run scenario **03** ($20 refund, allowed and executed, with a PayPal refund ID).
 2. Run **04** ($180 refund, held). Open **Approvals**, approve it, and see the refund ID.
 3. Run **05** (prompt injection, blocked) and **07** ($300 on a $45 order, hard-blocked by PayPal's own figures).
-4. **Overview** and **Audit Log** show every decision. **Policies** lets you edit, compile, simulate and save rules.
+4. Run **06** (a fake "store owner" demands subscription cancellations: flagged as manipulation, blocked) and **10** (a genuine cancellation: held). Approve **10** on **Approvals**: Cleat cancels the real sandbox subscription and shows PayPal's new status, CANCELLED.
+5. **Overview** and **Audit Log** show every decision. **Policies** lets you edit, compile, simulate and save rules.
 
 ## Tests
 
@@ -82,15 +91,15 @@ streamlit run app.py
 pytest
 ```
 
-The tests cover the engine, the interceptor, approvals (hash checks, expiry, re-checked hard rules), compiler validation, the injection check, the agent loop, every page (rendered with Streamlit's AppTest) and repository hygiene. They run offline with fakes for PayPal and Gemini.
+The tests cover the engine, the interceptor, approvals (hash checks, expiry, re-checked hard rules), compiler validation, the injection check, the agent loop, the seed script, every page (rendered with Streamlit's AppTest) and repository hygiene. They run offline with fakes for PayPal and Gemini, and GitHub Actions runs them on every push from a clean install of the locked requirements.
 
 ## Limitations
 
 - Sandbox only: no real money ever moves.
-- The hosted demo runs on Render's free tier: the first load after 15 idle minutes takes about a minute, and the audit log and approvals reset when the service restarts. The 24-hour refund total (rule R3) and the hourly agent-run limit count from that local log, so they also restart from zero; per-capture over-refund checks are unaffected because they use PayPal's own refund history.
-- Demo orders are seeded once into `data/fixtures/orders.json` by hand-approving them as the sandbox buyer; Cleat checks their real balances with PayPal before each scenario.
+- The hosted demo runs on Render's free tier: the first load after 15 idle minutes takes about a minute, and the audit log and approvals reset when the service restarts. The 24-hour refund total (rule R3) and the agent-run limits count from that local log, so they also restart from zero; per-capture over-refund checks are unaffected because they use PayPal's own refund history.
+- To stay inside Gemini's daily quota, the hosted demo allows 10 agent runs an hour and 40 a day (`AGENT_RUNS_PER_HOUR`, `AGENT_RUNS_PER_DAY`).
+- Demo orders and subscriptions are seeded once into `data/fixtures/` by hand-approving them as the sandbox buyer; Cleat checks their real balances and statuses with PayPal before each scenario. Each approved cancellation in scenario 10 uses up one seeded subscription.
 - The installed Agent Toolkit (1.1.0) has no dispute or transaction-search tools, so Cleat cannot act on disputes.
-- The subscription in scenarios 06 and 10 is fictitious, so approving that cancellation returns PayPal's not-found error.
 
 ## Built with
 

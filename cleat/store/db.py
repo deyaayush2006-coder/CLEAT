@@ -221,6 +221,24 @@ def refunded_by_capture() -> dict[str, float]:
 
 # Approvals
 
+def subscriptions_in_use() -> set[str]:
+    """Subscription IDs with a cancellation that Cleat executed or is holding for approval."""
+    with _session() as session:
+        rows = session.exec(
+            select(Attempt.args_json).where(
+                Attempt.tool == "cancel_subscription",
+                col(Attempt.status).in_(["executed", "held"]),
+            )
+        )
+        ids = set()
+        for args_json in rows:
+            try:
+                ids.add(str(json.loads(args_json)["subscription_id"]))
+            except (ValueError, KeyError, TypeError):
+                continue
+        return ids
+
+
 def create_approval(**fields: Any) -> Approval:
     """Store a new pending approval."""
     return _save(Approval(**fields))
@@ -330,6 +348,11 @@ def get_run(run_id: str) -> AgentRun | None:
 
 def runs_in_last_hour() -> int:
     """Count agent runs started in the last hour, for the hosted-demo rate limit."""
-    since = utcnow() - timedelta(hours=1)
+    return runs_in_last(hours=1)
+
+
+def runs_in_last(hours: float) -> int:
+    """Count agent runs started in the last `hours` hours, for the hosted-demo rate limits."""
+    since = utcnow() - timedelta(hours=hours)
     with _session() as session:
         return len(list(session.exec(select(AgentRun.id).where(col(AgentRun.created_at) >= since))))

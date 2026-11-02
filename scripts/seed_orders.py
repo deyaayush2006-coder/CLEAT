@@ -1,13 +1,18 @@
-"""Creates sandbox orders for the demo store, waits for manual buyer approval,
-captures them and records the IDs in data/fixtures/orders.json.
+"""Creates the demo store's sandbox data, waiting for manual buyer approval of each item:
+
+1. 30 orders, captured and recorded in data/fixtures/orders.json.
+2. One product and one monthly plan, then subscriptions to it, checked ACTIVE with PayPal
+   and recorded in data/fixtures/subscriptions.json (scenarios 06 and 10 use them).
 
 Run from the repo root:  python -m scripts.seed_orders
 Log in to https://www.sandbox.paypal.com as your sandbox Personal (buyer) account first.
-Orders already in the fixture file are skipped, so the script can be stopped and rerun.
+Everything already in the fixture files is skipped, so the script can be stopped and rerun.
 """
 
 import json
 import webbrowser
+from pathlib import Path
+from typing import Any
 
 from cleat.paypal import rest
 from cleat.settings import ROOT
@@ -15,6 +20,19 @@ from cleat.settings import ROOT
 STORE = "Kolkata Handloom Co."
 CURRENCY = "USD"
 FIXTURES = ROOT / "data" / "fixtures" / "orders.json"
+SUBSCRIPTION_FIXTURES = ROOT / "data" / "fixtures" / "subscriptions.json"
+
+PRODUCT_NAME = "Saree care service"
+PLAN_NAME = "Monthly saree care"
+PLAN_PRICE = "12.00"
+# Each approved cancellation in scenario 10 uses one up, so seed a few more than one demo needs.
+SUBSCRIBERS: list[tuple[str, str]] = [
+    ("Meera", "Chatterjee"),
+    ("Tanvi", "Dutta"),
+    ("Shreya", "Sinha"),
+    ("Kritika", "Sengupta"),
+    ("Ankita", "Roychowdhury"),
+]
 
 # Fictional customers. Amounts span $15-$300 with several large orders, because the
 # demo scenarios need captures with $180+ of refundable balance.
@@ -59,16 +77,21 @@ def load_fixtures() -> list[dict]:
 
 def save_fixtures(entries: list[dict]) -> None:
     """Write the fixture file; called after every capture so an interruption loses nothing."""
-    FIXTURES.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8", newline="\n")
+    _write_json(FIXTURES, entries)
+
+
+def ask(prompt: str) -> str:
+    """Read one answer; q stops the script so it can be rerun later."""
+    answer = input(prompt).strip().lower()
+    if answer == "q":
+        raise SystemExit("Stopped. Run the script again to continue where you left off.")
+    return answer
 
 
 def capture_when_approved(order_id: str) -> rest.CapturedOrder | None:
     """Prompt until the buyer has approved the order, then capture it. Returns None if skipped."""
     while True:
-        answer = input("  Approve it in the browser, then press Enter (s = skip, q = quit): ").strip().lower()
-        if answer == "q":
-            raise SystemExit("Stopped. Run the script again to continue where you left off.")
-        if answer == "s":
+        if ask("  Approve it in the browser, then press Enter (s = skip, q = quit): ") == "s":
             return None
         try:
             return rest.capture_order(order_id)
@@ -78,13 +101,12 @@ def capture_when_approved(order_id: str) -> rest.CapturedOrder | None:
             print("  PayPal says this order is not approved yet.")
 
 
-def main() -> None:
+def seed_orders() -> None:
     """Create, approve (by hand) and capture every catalogue order not yet in the fixtures."""
     entries = load_fixtures()
     done = {entry["seed"] for entry in entries}
     todo = [(seed, row) for seed, row in enumerate(CATALOGUE, start=1) if seed not in done]
-    print(f"{len(done)} of {len(CATALOGUE)} orders already captured, {len(todo)} to go.")
-    print("Each approval page opens in your default browser; it must be logged in as the sandbox buyer.\n")
+    print(f"{len(done)} of {len(CATALOGUE)} orders already captured, {len(todo)} to go.\n")
 
     for position, (seed, (customer, item, amount)) in enumerate(todo, start=1):
         order = rest.create_order(amount, CURRENCY, f"{STORE}: {item}", custom_id=f"KHC-{seed:03d}")
@@ -111,7 +133,91 @@ def main() -> None:
         save_fixtures(entries)
         print(f"  Captured: {captured.capture_id} ({captured.capture_status})\n")
 
-    print(f"Done. {len(entries)} captured orders in {FIXTURES.relative_to(ROOT).as_posix()}.")
+    print(f"Orders done. {len(entries)} captured orders in {FIXTURES.relative_to(ROOT).as_posix()}.\n")
+
+
+def load_subscription_fixtures() -> dict[str, Any]:
+    """Return the recorded product, plan and subscriptions."""
+    if SUBSCRIPTION_FIXTURES.exists():
+        return json.loads(SUBSCRIPTION_FIXTURES.read_text(encoding="utf-8"))
+    return {"product_id": None, "plan_id": None, "subscriptions": []}
+
+
+def save_subscription_fixtures(data: dict[str, Any]) -> None:
+    """Write the subscription fixture file; called after every step so an interruption loses nothing."""
+    _write_json(SUBSCRIPTION_FIXTURES, data)
+
+
+def active_when_approved(subscription_id: str) -> str | None:
+    """Prompt until PayPal reports the subscription ACTIVE. Returns its status, or None if skipped."""
+    while True:
+        if ask("  Approve it in the browser, then press Enter (s = skip, q = quit): ") == "s":
+            return None
+        status = rest.get_subscription(subscription_id).data.get("status")
+        if status == "ACTIVE":
+            return status
+        if status == "APPROVAL_PENDING":
+            print("  PayPal says this subscription is not approved yet.")
+        else:
+            print(f"  PayPal reports it as {status}; it should become ACTIVE within a few seconds.")
+
+
+def seed_subscriptions() -> None:
+    """Create the product and plan once, then subscribe each demo subscriber not yet recorded."""
+    data = load_subscription_fixtures()
+    if not data.get("product_id"):
+        product = rest.create_product(PRODUCT_NAME, f"{STORE}: monthly cleaning and storage for handloom sarees")
+        data["product_id"] = product.data["id"]
+        save_subscription_fixtures(data)
+        print(f"Created product {data['product_id']}.")
+    if not data.get("plan_id"):
+        plan = rest.create_monthly_plan(data["product_id"], PLAN_NAME, PLAN_PRICE, CURRENCY)
+        data["plan_id"] = plan.data["id"]
+        save_subscription_fixtures(data)
+        print(f"Created plan {data['plan_id']} (${PLAN_PRICE} a month).")
+
+    done = {entry["seed"] for entry in data["subscriptions"]}
+    todo = [(seed, name) for seed, name in enumerate(SUBSCRIBERS, start=1) if seed not in done]
+    print(f"{len(done)} of {len(SUBSCRIBERS)} subscriptions already active, {len(todo)} to go.\n")
+
+    for position, (seed, (given, surname)) in enumerate(todo, start=1):
+        customer = f"{given} {surname}"
+        email = f"{given}.{surname}".lower() + "@example.com"
+        created = rest.create_subscription(data["plan_id"], given, surname, email, STORE)
+        print(f"[{position}/{len(todo)}] {PLAN_NAME} for {customer}")
+        print(f"  subscription {created.subscription_id}: {created.approve_url}")
+        webbrowser.open(created.approve_url)
+        status = active_when_approved(created.subscription_id)
+        if status is None:
+            print("  Skipped.\n")
+            continue
+        data["subscriptions"].append(
+            {
+                "seed": seed,
+                "subscription_id": created.subscription_id,
+                "plan_id": data["plan_id"],
+                "status": status,
+                "customer_name": customer,
+                "customer_email": email,
+                "plan": PLAN_NAME,
+            }
+        )
+        save_subscription_fixtures(data)
+        print(f"  Active: {created.subscription_id}\n")
+
+    rel = SUBSCRIPTION_FIXTURES.relative_to(ROOT).as_posix()
+    print(f"Subscriptions done. {len(data['subscriptions'])} active subscriptions in {rel}.")
+
+
+def _write_json(path: Path, data: Any) -> None:
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
+def main() -> None:
+    """Seed the orders, then the subscriptions, in one sitting."""
+    print("Each approval page opens in your default browser; it must be logged in as the sandbox buyer.\n")
+    seed_orders()
+    seed_subscriptions()
 
 
 if __name__ == "__main__":
