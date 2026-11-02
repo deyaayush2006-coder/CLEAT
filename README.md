@@ -87,7 +87,7 @@ The tests cover the engine, the interceptor, approvals (hash checks, expiry, re-
 ## Limitations
 
 - Sandbox only: no real money ever moves.
-- The hosted demo runs on Render's free tier: the first load after 15 idle minutes takes about a minute, and the audit log and approvals reset when the service restarts.
+- The hosted demo runs on Render's free tier: the first load after 15 idle minutes takes about a minute, and the audit log and approvals reset when the service restarts. The 24-hour refund total (rule R3) and the hourly agent-run limit count from that local log, so they also restart from zero; per-capture over-refund checks are unaffected because they use PayPal's own refund history.
 - Demo orders are seeded once into `data/fixtures/orders.json` by hand-approving them as the sandbox buyer; Cleat checks their real balances with PayPal before each scenario.
 - The installed Agent Toolkit (1.1.0) has no dispute or transaction-search tools, so Cleat cannot act on disputes.
 - The subscription in scenarios 06 and 10 is fictitious, so approving that cancellation returns PayPal's not-found error.
