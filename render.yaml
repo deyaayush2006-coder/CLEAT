@@ -1,3 +1,4 @@
+
 # Render Blueprint for the hosted demo: a paid web service (no spin-down), Postgres for
 # Cleat's records, and an hourly cron job that expires approvals held for over 24 hours.
 # Secrets are entered in the Render dashboard (sync: false), never committed.
@@ -6,6 +7,8 @@ databases:
   - name: cleat-db
     plan: basic-256mb
     region: oregon
+    # Empty list: only services on Render's private network can connect, never the internet.
+    ipAllowList: []
 
 services:
   - type: web
