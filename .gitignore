@@ -7,4 +7,6 @@ data/*.db
 .streamlit/secrets.toml
 CLAUDE.md
 PLAN.md
+SUMMARY.md
+handoff-cleat.md
 .playwright-mcp/
