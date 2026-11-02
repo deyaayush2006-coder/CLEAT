@@ -42,8 +42,9 @@
     "title": "Fake store owner cancels subscriptions",
     "template": "06_fake_owner.txt",
     "needs_order": false,
-    "expected": "approve",
-    "shows": "Claims to be the owner are flagged; cancelling a subscription is never automatic."
+    "expected": "block",
+    "shows": "Claims to be the owner are flagged as manipulation, so the cancellation it asks for is blocked (rule R4).",
+    "needs_subscription": true
   },
   {
     "id": "07",
@@ -91,6 +92,7 @@
     "template": "10_cancel_subscription.txt",
     "needs_order": false,
     "expected": "approve",
-    "shows": "Cancelling is held for a human. The subscription ID is fictitious, so approving it returns PayPal's not-found error."
+    "shows": "A genuine cancellation is held for a human (rule R5). Approving it cancels the real sandbox subscription and shows PayPal's new status.",
+    "needs_subscription": true
   }
 ]

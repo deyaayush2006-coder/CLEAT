@@ -67,19 +67,21 @@ def test_a_scenario_is_filled_with_a_real_order() -> None:
 
 def test_without_seeded_orders_scenarios_needing_one_are_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pool, "seeded_orders", list)
-    with pytest.raises(scenarios.NoCaptureAvailable, match="seeded yet"):
+    monkeypatch.setattr(pool, "seeded_subscriptions", list)
+    with pytest.raises(scenarios.ScenarioUnavailable, match="orders have been seeded yet"):
         scenarios.fill(by_id("03"))
-    assert scenarios.fill(by_id("06")).customer == "A customer"
+    with pytest.raises(scenarios.ScenarioUnavailable, match="subscriptions have been seeded yet"):
+        scenarios.fill(by_id("10"))
 
 
 def test_when_every_order_is_used_up_the_message_says_so(paypal_balances: dict[str, float]) -> None:
     paypal_balances.update(CAP22=0.0, CAP45=0.0, CAP240=0.0)
-    with pytest.raises(scenarios.NoCaptureAvailable, match=r"still has \$20.00"):
+    with pytest.raises(scenarios.ScenarioUnavailable, match=r"still has \$20.00"):
         scenarios.fill(by_id("03"))
 
 
 def test_every_scenario_template_exists_and_uses_known_placeholders() -> None:
-    known = {"customer_name", "order_id", "capture_id", "amount", "item"}
+    known = {"customer_name", "order_id", "capture_id", "amount", "item", "subscription_id"}
     loaded = scenarios.load_scenarios()
     assert len({s.id for s in loaded}) == len(loaded)
     for scenario in loaded:
@@ -87,3 +89,45 @@ def test_every_scenario_template_exists_and_uses_known_placeholders() -> None:
         used = {name for _, name, _, _ in string.Formatter().parse(text) if name}
         assert used <= known, scenario.id
         assert scenario.expected in {"allow", "approve", "block"}
+
+
+SUBSCRIPTIONS = [
+    {"seed": 1, "subscription_id": "I-SUB1", "customer_name": "Meera Chatterjee"},
+    {"seed": 2, "subscription_id": "I-SUB2", "customer_name": "Tanvi Dutta"},
+]
+
+
+@pytest.fixture
+def paypal_subscriptions(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    """Seed two subscriptions and make PayPal report each one's status from the returned dict."""
+    statuses = {"I-SUB1": "ACTIVE", "I-SUB2": "ACTIVE"}
+    monkeypatch.setattr(pool, "seeded_subscriptions", lambda: [dict(s) for s in SUBSCRIPTIONS])
+    monkeypatch.setattr(pool, "subscription_facts", lambda sub_id: {"subscription_status": statuses[sub_id]})
+    return statuses
+
+
+@pytest.mark.usefixtures("paypal_subscriptions")
+@pytest.mark.parametrize("scenario_id", ["06", "10"])
+def test_subscription_scenarios_use_a_real_seeded_subscription(scenario_id: str) -> None:
+    filled = scenarios.fill(by_id(scenario_id))
+    assert "I-SUB1" in filled.message and "{" not in filled.message
+    assert filled.subscription["subscription_id"] == "I-SUB1"
+
+
+def test_a_subscription_paypal_says_is_cancelled_is_skipped(paypal_subscriptions: dict[str, str]) -> None:
+    paypal_subscriptions["I-SUB1"] = "CANCELLED"
+    assert scenarios.fill(by_id("10")).customer == "Tanvi Dutta"
+
+
+@pytest.mark.usefixtures("paypal_subscriptions")
+def test_a_subscription_with_a_held_cancellation_is_not_offered_again() -> None:
+    db.log_attempt(session_id="s", tool="cancel_subscription", tier="destructive",
+                   args_json=json.dumps({"subscription_id": "I-SUB1"}), decision="approve", reason="R5",
+                   facts_json="{}", status="held")
+    assert scenarios.fill(by_id("10")).subscription["subscription_id"] == "I-SUB2"
+
+
+def test_when_every_subscription_is_used_up_the_message_says_so(paypal_subscriptions: dict[str, str]) -> None:
+    paypal_subscriptions.update({"I-SUB1": "CANCELLED", "I-SUB2": "CANCELLED"})
+    with pytest.raises(scenarios.ScenarioUnavailable, match="has been cancelled"):
+        scenarios.fill(by_id("10"))

@@ -1,5 +1,6 @@
 """Direct calls to the PayPal sandbox REST API: OAuth token cache, Orders v2
-(create, capture) and Payments v2 (get capture, refund capture).
+(create, capture), Payments v2 (get capture, refund capture) and Subscriptions v1
+(product, plan and subscription for the demo; get and cancel subscription).
 
 Every POST carries a fresh PayPal-Request-Id, so PayPal treats a retried request as the
 same request instead of creating a second order, capture or refund.
@@ -146,6 +147,75 @@ def refund_capture(capture_id: str, amount: Decimal | float | str, currency: str
     if note:
         body["note_to_payer"] = note[:255]
     return _call("POST", f"/v2/payments/captures/{_checked_id(capture_id)}/refund", body)
+
+
+@dataclass(frozen=True)
+class CreatedSubscription:
+    """A subscription waiting for the buyer to approve it at approve_url."""
+
+    subscription_id: str
+    approve_url: str
+    response: PayPalResponse
+
+
+def create_product(name: str, description: str = "") -> PayPalResponse:
+    """Create a catalog product (Catalog Products v1), the parent of a subscription plan."""
+    body: dict[str, Any] = {"name": name[:127], "type": "SERVICE", "category": "SERVICES"}
+    if description:
+        body["description"] = description[:256]
+    return _call("POST", "/v1/catalogs/products", body)
+
+
+def create_monthly_plan(product_id: str, name: str, price: Decimal | float | str, currency: str) -> PayPalResponse:
+    """Create an ACTIVE plan that bills `price` every month until cancelled."""
+    body = {
+        "product_id": _checked_id(product_id),
+        "name": name[:127],
+        "status": "ACTIVE",
+        "billing_cycles": [
+            {
+                "frequency": {"interval_unit": "MONTH", "interval_count": 1},
+                "tenure_type": "REGULAR",
+                "sequence": 1,
+                "total_cycles": 0,
+                "pricing_scheme": {"fixed_price": {"value": format_amount(price), "currency_code": currency}},
+            }
+        ],
+        "payment_preferences": {"auto_bill_outstanding": True, "payment_failure_threshold": 1},
+    }
+    return _call("POST", "/v1/billing/plans", body)
+
+
+def create_subscription(plan_id: str, given_name: str, surname: str, email: str, brand: str) -> CreatedSubscription:
+    """Create a subscription to a plan and return its ID and the buyer's approval link."""
+    body = {
+        "plan_id": _checked_id(plan_id),
+        "subscriber": {"name": {"given_name": given_name, "surname": surname}, "email_address": email},
+        "application_context": {
+            "brand_name": brand[:127],
+            "shipping_preference": "NO_SHIPPING",
+            "user_action": "SUBSCRIBE_NOW",
+            "return_url": RETURN_URL,
+            "cancel_url": CANCEL_URL,
+        },
+    }
+    resp = _call("POST", "/v1/billing/subscriptions", body)
+    approve_url = next((link["href"] for link in resp.data.get("links", []) if link.get("rel") == "approve"), None)
+    if approve_url is None:
+        raise PayPalError(201, "MISSING_APPROVAL_LINK", "Subscription created without an approval link",
+                          debug_id=resp.debug_id, request_id=resp.request_id)
+    return CreatedSubscription(subscription_id=resp.data["id"], approve_url=approve_url, response=resp)
+
+
+def get_subscription(subscription_id: str) -> PayPalResponse:
+    """Return a subscription's details, including its status (ACTIVE, CANCELLED, ...)."""
+    return _call("GET", f"/v1/billing/subscriptions/{_checked_id(subscription_id)}")
+
+
+def cancel_subscription(subscription_id: str, reason: str) -> PayPalResponse:
+    """Cancel an ACTIVE or SUSPENDED subscription. PayPal answers 204 with no body."""
+    body = {"reason": (reason or "Cancelled by the store")[:127]}
+    return _call("POST", f"/v1/billing/subscriptions/{_checked_id(subscription_id)}/cancel", body)
 
 
 def format_amount(amount: Decimal | float | str) -> str:

@@ -29,8 +29,8 @@
   },
   {
     "id": "R4",
-    "description": "If the customer's message looks like it's trying to manipulate the assistant, block all money actions.",
-    "tools": ["tier:money"],
+    "description": "If the customer's message looks like it's trying to manipulate the assistant, block all money actions and cancellations.",
+    "tools": ["tier:money", "tier:destructive"],
     "conditions": [
       {"field": "inbound_risk", "op": "in", "value": ["medium", "high"]}
     ],
@@ -38,7 +38,7 @@
   },
   {
     "id": "R5",
-    "description": "Never accept a dispute claim or cancel a subscription automatically.",
+    "description": "Never cancel a subscription automatically.",
     "tools": ["cancel_subscription"],
     "conditions": [],
     "action": "approve"

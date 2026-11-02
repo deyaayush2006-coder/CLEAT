@@ -13,6 +13,8 @@ SEVERITY = {"allow": 0, "approve": 1, "block": 2}
 # From the capture_status enum in PayPal's Payments v2 OpenAPI spec. DECLINED, PENDING,
 # REFUNDED and FAILED captures have nothing that can be refunded.
 REFUNDABLE_STATUSES = frozenset({"COMPLETED", "PARTIALLY_REFUNDED"})
+# From the subscription status enum in PayPal's Subscriptions v1 API: only these can be cancelled.
+CANCELLABLE_STATUSES = frozenset({"ACTIVE", "SUSPENDED"})
 # Half a cent, so float rounding never turns an exact full refund into an over-refund.
 _TOLERANCE = 0.005
 
@@ -21,6 +23,15 @@ def hard_rules(tool: str, facts: dict[str, Any]) -> Decision | None:
     """Return a block that no policy can override, or None if no hard rule applies."""
     if "verification_error" in facts:
         return _block("HARD-UNVERIFIED", f"Could not verify this action with PayPal: {facts['verification_error']}", facts)
+    if tool == "cancel_subscription":
+        status = facts.get("subscription_status")
+        if status not in CANCELLABLE_STATUSES:
+            return _block(
+                "HARD-NOT-CANCELLABLE",
+                f"PayPal reports this subscription as {status}; only ACTIVE or SUSPENDED subscriptions can be cancelled.",
+                facts,
+            )
+        return None
     if tool != "refund_capture":
         return None
     status = facts.get("capture_status")

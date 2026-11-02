@@ -75,6 +75,11 @@ for approval, attempt in pending:
             cols[2].metric("Refunded in 24 h", money(facts.get("window_total_24h")))
             cols[3].metric("Injection risk", facts.get("inbound_risk", "-"))
             st.caption(f"Verified with PayPal when held. Capture status: {facts.get('capture_status')}. It is checked again on approval.")
+        elif "subscription_status" in facts:
+            cols = st.columns(2)
+            cols[0].metric("Subscription status", facts["subscription_status"])
+            cols[1].metric("Injection risk", facts.get("inbound_risk", "-"))
+            st.caption("Verified with PayPal when held. It is checked again on approval.")
         st.text_input("Note (optional)", key=f"note-{approval.id}")
         approve_col, reject_col, _ = st.columns([1, 1, 4])
         approve_col.button("Approve", key=f"approve-{approval.id}", type="primary",
@@ -98,6 +103,11 @@ for approval, attempt in decided:
         if isinstance(result, dict) and result.get("refund_id"):
             paypal_ref("Refund", result["refund_id"])
             st.caption(f"PayPal refund status: **{result.get('status')}**")
+            paypal_ref("PayPal-Request-Id", result.get("paypal_request_id"))
+            paypal_ref("PayPal debug ID", result.get("paypal_debug_id"))
+        elif isinstance(result, dict) and result.get("subscription_id"):
+            paypal_ref("Subscription", result["subscription_id"])
+            st.caption(f"PayPal subscription status after the call: **{result.get('status')}**")
             paypal_ref("PayPal-Request-Id", result.get("paypal_request_id"))
             paypal_ref("PayPal debug ID", result.get("paypal_debug_id"))
         elif result:

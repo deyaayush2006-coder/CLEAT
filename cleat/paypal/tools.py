@@ -1,5 +1,9 @@
 """Registry of raw, unguarded PayPal tools: the PayPal Agent Toolkit tools plus
-Cleat's refund_capture tool, which the toolkit does not provide.
+Cleat's own refund_capture (the toolkit has none) and cancel_subscription.
+
+Cleat replaces the toolkit's cancel_subscription because that one reports success as plain
+text and drops PayPal's error body and debug ID, so a held cancellation could not show
+PayPal's response after approval.
 
 Nothing here decides whether a call is allowed. The firewall wraps these tools before
 the agent ever sees them.
@@ -78,9 +82,49 @@ refund_capture_tool = StructuredTool.from_function(
 )
 
 
+class CancelSubscriptionArgs(BaseModel):
+    """Arguments for cancel_subscription."""
+
+    subscription_id: str = Field(description="ID of the subscription to cancel, for example I-ABC123.")
+    reason: str = Field(default="Customer requested cancellation", max_length=127,
+                        description="Short reason for the cancellation.")
+
+
+def _cancel_subscription(subscription_id: str, reason: str = "Customer requested cancellation") -> str:
+    try:
+        resp = rest.cancel_subscription(subscription_id, reason)
+        # The cancel call returns no body, so PayPal's own status after the call is the proof.
+        after = rest.get_subscription(subscription_id)
+    except (rest.PayPalError, ValueError) as e:
+        raise ToolException(str(e)) from e
+    return json.dumps(
+        {
+            "subscription_id": subscription_id,
+            "status": after.data.get("status"),
+            "status_update_time": after.data.get("status_update_time"),
+            "reason": reason,
+            "paypal_request_id": resp.request_id,
+            "paypal_debug_id": resp.debug_id,
+        }
+    )
+
+
+cancel_subscription_tool = StructuredTool.from_function(
+    func=_cancel_subscription,
+    name="cancel_subscription",
+    description="Cancel a customer's PayPal subscription, identified by its subscription ID.",
+    args_schema=CancelSubscriptionArgs,
+    handle_tool_error=True,
+)
+
+# Toolkit tools that Cleat replaces with its own implementation of the same name.
+REPLACED_TOOLKIT_TOOLS = frozenset({"cancel_subscription"})
+
+
 @cache
 def raw_tools() -> tuple[BaseTool, ...]:
-    """Return every raw PayPal tool: the toolkit's tools followed by refund_capture.
+    """Return every raw PayPal tool: the toolkit's tools (minus the ones Cleat replaces),
+    then cancel_subscription and refund_capture.
 
     Built once per process. Raises SettingsError if the PayPal credentials are missing.
     """
@@ -89,4 +133,5 @@ def raw_tools() -> tuple[BaseTool, ...]:
         secret=require("PAYPAL_CLIENT_SECRET"),
         configuration=Configuration(actions=TOOLKIT_ACTIONS, context=Context(sandbox=True)),
     )
-    return (*toolkit.get_tools(), refund_capture_tool)
+    kept = [tool for tool in toolkit.get_tools() if tool.name not in REPLACED_TOOLKIT_TOOLS]
+    return (*kept, cancel_subscription_tool, refund_capture_tool)
