@@ -1,4 +1,4 @@
-"""Render cron job: expires approvals that have been pending for more than 24 hours.
+"""Expires approvals that have been pending for more than 24 hours (for a scheduled job).
 
 Run from the repo root:  python -m scripts.expire_stale_approvals
 """
