@@ -1,0 +1,16 @@
+# Direct dependencies. requirements.txt is the locked, cross-platform build of this file:
+#   uv pip compile requirements.in --universal --python-version 3.11 -o requirements.txt
+# The toolkit is pinned to 1.1.0: 1.11.0 renamed capture_order to pay_order and pulls in
+# langchain-core 0.3, which the agent and the tool tiers are not built for.
+paypal-agent-toolkit==1.1.0
+# The toolkit's LangChain adapter imports langchain but does not declare it as a dependency.
+langchain
+langchain-core
+langchain-google-genai
+requests
+pydantic
+sqlmodel
+psycopg[binary]
+streamlit
+python-dotenv
+pytest

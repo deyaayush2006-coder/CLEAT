@@ -1,13 +1,278 @@
-# Unpinned until the PayPal plumbing works end to end; pinned with pip freeze in Phase 7.
-paypal-agent-toolkit
-# The toolkit's LangChain adapter imports langchain but does not declare it as a dependency.
-langchain
-langchain-core
-langchain-google-genai
-requests
-pydantic
-sqlmodel
-psycopg[binary]
-streamlit
-python-dotenv
-pytest
+# Locked by: uv pip compile requirements.in --universal --python-version 3.11 -o requirements.txt
+# Edit requirements.in, not this file. Verified by CI (.github/workflows/tests.yml).
+altair==6.3.0
+    # via streamlit
+annotated-types==0.8.0
+    # via pydantic
+anyio==4.16.0
+    # via
+    #   google-genai
+    #   httpx
+    #   httpx2
+    #   langsmith
+    #   starlette
+    #   streamlit
+attrs==26.1.0
+    # via
+    #   jsonschema
+    #   referencing
+certifi==2026.10.23
+    # via
+    #   httpcore
+    #   httpx
+    #   langchain-core
+    #   requests
+cffi==2.1.1 ; platform_python_implementation != 'PyPy'
+    # via cryptography
+charset-normalizer==3.5.2
+    # via requests
+click==8.5.0
+    # via
+    #   streamlit
+    #   uvicorn
+colorama==0.4.6 ; sys_platform == 'win32'
+    # via pytest
+cryptography==50.0.2
+    # via google-auth
+distro==1.9.0
+    # via
+    #   google-genai
+    #   langsmith
+filetype==1.2.0
+    # via langchain-google-genai
+google-auth==2.62.0
+    # via google-genai
+google-genai==2.34.0
+    # via langchain-google-genai
+h11==0.16.0
+    # via
+    #   httpcore
+    #   httpcore2
+    #   uvicorn
+httpcore==1.0.9
+    # via httpx
+httpcore2==2.16.0 ; sys_platform != 'emscripten'
+    # via httpx2
+httpx==0.28.1
+    # via
+    #   google-genai
+    #   langchain-core
+    #   langgraph-sdk
+    #   paypal-agent-toolkit
+httpx2==2.16.0
+    # via langsmith
+httpx2-jsfetch==1.0 ; python_full_version >= '3.12' and sys_platform == 'emscripten'
+    # via httpx2
+idna==3.20
+    # via
+    #   anyio
+    #   httpx
+    #   httpx2
+    #   requests
+iniconfig==2.3.1
+    # via pytest
+itsdangerous==2.2.0
+    # via streamlit
+jinja2==3.1.6
+    # via
+    #   altair
+    #   pydeck
+jsonpatch==1.39
+    # via langchain-core
+jsonpointer==3.7
+    # via jsonpatch
+jsonschema==4.26.0
+    # via altair
+jsonschema-specifications==2025.9.1
+    # via jsonschema
+langchain==1.4.7
+    # via -r requirements.in
+langchain-core==1.7.3
+    # via
+    #   -r requirements.in
+    #   langchain
+    #   langchain-google-genai
+    #   langgraph
+    #   langgraph-checkpoint
+    #   langgraph-prebuilt
+    #   langgraph-sdk
+langchain-google-genai==4.4.2
+    # via -r requirements.in
+langchain-protocol==0.0.20
+    # via
+    #   langchain-core
+    #   langgraph-sdk
+langgraph==1.2.19
+    # via langchain
+langgraph-checkpoint==4.3.1
+    # via
+    #   langgraph
+    #   langgraph-prebuilt
+langgraph-prebuilt==1.1.1
+    # via langgraph
+langgraph-sdk==0.4.11
+    # via langgraph
+langsmith==0.14.17
+    # via langchain-core
+markupsafe==3.0.4
+    # via jinja2
+narwhals==2.28.0
+    # via altair
+numpy==2.4.6 ; python_full_version < '3.12'
+    # via
+    #   pandas
+    #   pydeck
+    #   streamlit
+numpy==2.5.4 ; python_full_version >= '3.12'
+    # via
+    #   pandas
+    #   pydeck
+    #   streamlit
+orjson==3.13.0
+    # via
+    #   langgraph-sdk
+    #   langsmith
+ormsgpack==1.13.0
+    # via langgraph-checkpoint
+packaging==26.3
+    # via
+    #   altair
+    #   langchain-core
+    #   langsmith
+    #   pytest
+    #   streamlit
+pandas==3.1.0
+    # via streamlit
+paypal-agent-toolkit==1.1.0
+    # via -r requirements.in
+pillow==13.0.0
+    # via streamlit
+pluggy==1.7.0
+    # via pytest
+protobuf==7.36.2
+    # via streamlit
+psycopg==3.3.6
+    # via -r requirements.in
+psycopg-binary==3.3.6 ; implementation_name != 'pypy'
+    # via psycopg
+pyarrow==26.0.0
+    # via streamlit
+pyasn1==0.6.5
+    # via pyasn1-modules
+pyasn1-modules==0.4.2
+    # via google-auth
+pycparser==3.12 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
+    # via cffi
+pydantic==2.14.2
+    # via
+    #   -r requirements.in
+    #   google-genai
+    #   langchain
+    #   langchain-core
+    #   langchain-google-genai
+    #   langgraph
+    #   langsmith
+    #   paypal-agent-toolkit
+    #   sqlmodel
+pydantic-core==2.50.2
+    # via pydantic
+pydeck==0.9.3
+    # via streamlit
+pygments==2.21.0
+    # via pytest
+pytest==9.2.0
+    # via -r requirements.in
+python-dateutil==4.0.0
+    # via pandas
+python-dotenv==1.2.4
+    # via -r requirements.in
+python-multipart==0.0.33
+    # via streamlit
+pyyaml==6.0.3
+    # via langchain-core
+referencing==0.37.0
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
+requests==2.34.2
+    # via
+    #   -r requirements.in
+    #   google-auth
+    #   google-genai
+    #   langsmith
+    #   paypal-agent-toolkit
+    #   requests-toolbelt
+    #   streamlit
+requests-toolbelt==1.0.0
+    # via langsmith
+rpds-py==2026.9.1
+    # via
+    #   jsonschema
+    #   referencing
+sniffio==1.3.1
+    # via
+    #   google-genai
+    #   langsmith
+sqlalchemy==2.1.6
+    # via sqlmodel
+sqlmodel==0.0.48
+    # via -r requirements.in
+starlette==1.10.0
+    # via streamlit
+streamlit==1.66.1
+    # via -r requirements.in
+tenacity==9.1.4
+    # via
+    #   google-genai
+    #   langchain-core
+truststore==0.10.5 ; sys_platform != 'emscripten'
+    # via
+    #   httpcore2
+    #   httpx2
+typing-extensions==4.16.0
+    # via
+    #   altair
+    #   anyio
+    #   google-genai
+    #   httpx2
+    #   langchain-core
+    #   langchain-protocol
+    #   langsmith
+    #   psycopg
+    #   pydantic
+    #   pydantic-core
+    #   referencing
+    #   sqlalchemy
+    #   sqlmodel
+    #   starlette
+    #   streamlit
+    #   typing-inspection
+typing-inspection==0.4.4
+    # via pydantic
+tzdata==2026.6
+    # via
+    #   pandas
+    #   psycopg
+    #   python-dateutil
+urllib3==2.8.0
+    # via requests
+uuid-utils==0.19.0
+    # via
+    #   langchain-core
+    #   langsmith
+uvicorn==0.54.0
+    # via streamlit
+watchdog==6.0.0 ; sys_platform != 'darwin'
+    # via streamlit
+websockets==17.4
+    # via
+    #   google-genai
+    #   langgraph-sdk
+    #   langsmith
+    #   streamlit
+xxhash==4.0.2
+    # via
+    #   langgraph
+    #   langsmith
+zstandard==0.25.0
+    # via langsmith
