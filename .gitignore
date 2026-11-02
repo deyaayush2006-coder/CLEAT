@@ -11,3 +11,4 @@ SUMMARY.md
 handoff-cleat.md
 .playwright-mcp/
 .vscode/
+tools/sandbox_seeding/failure-*.png
