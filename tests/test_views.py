@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Callable
+from datetime import timedelta
 
 import pytest
 from fakes import ScriptedLLM
@@ -93,6 +94,17 @@ def test_rejecting_a_held_action_from_the_approvals_page(fake_paypal: Callable[.
     app.button(key=f"reject-{approval.id}").click().run()
     assert not app.exception
     assert db.get_approval(approval.id).status == "denied"
+
+
+@pytest.mark.usefixtures("seeded_policy")
+def test_approvals_page_expires_requests_held_over_24_hours(fake_paypal: Callable[..., None]) -> None:
+    record_runs(fake_paypal)
+    [(approval, _)] = db.pending_approvals()
+    db.update_approval(approval.id, created_at=db.utcnow() - timedelta(hours=25))
+    app = page("approvals").run()
+    assert not app.exception
+    assert db.get_approval(approval.id).status == "expired"
+    assert app.subheader[0].value == "Waiting for you (0)"
 
 
 def test_the_app_shell_starts_on_the_overview() -> None:

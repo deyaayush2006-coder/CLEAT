@@ -50,6 +50,8 @@ if message := st.session_state.pop("approval_message", None):
     st.error(message)
 
 try:
+    # Expire on view so stale requests never sit in the queue; the hosted demo has no cron.
+    approvals.expire_older_than()
     pending = db.pending_approvals()
     decided = [(a, t) for a, t in db.approvals(limit=15) if a.status != "pending"]
 except Exception as error:
