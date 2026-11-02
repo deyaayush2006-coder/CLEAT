@@ -120,3 +120,57 @@ def test_the_subscription_fixture_matches_what_the_demo_pool_reads(seeding: tupl
     seed_orders.seed_subscriptions()
     monkeypatch.setattr(pool, "SUBSCRIPTION_FIXTURES", seed_orders.SUBSCRIPTION_FIXTURES)
     assert pool.seeded_subscriptions()[0]["subscription_id"] == "I-MEERA"
+
+
+def test_the_catalogue_has_45_orders_with_15_high_value_ones_appended() -> None:
+    catalogue = seed_orders.CATALOGUE
+    assert len(catalogue) == 45
+    assert len({(customer, item) for customer, item, _ in catalogue}) == 45
+    assert all(200 <= float(amount) <= 400 for _, _, amount in catalogue[30:])
+    # The original 30 keep their positions, so fixtures seeded from them stay valid.
+    assert catalogue[0] == ("Ananya Bose", "Kantha stitch cotton stole", "22.00")
+    assert catalogue[29] == ("Labanya Sen", "Kantha quilted baby blanket", "45.00")
+
+
+def test_there_are_12_distinct_subscribers() -> None:
+    names = [f"{given} {surname}" for given, surname in seed_orders.SUBSCRIBERS]
+    assert len(names) == len(set(names)) == 12
+    assert seed_orders.SUBSCRIBERS[:5] == [("Meera", "Chatterjee"), ("Tanvi", "Dutta"), ("Shreya", "Sinha"),
+                                           ("Kritika", "Sengupta"), ("Ankita", "Roychowdhury")]
+
+
+def _recorded_order(seed: int) -> dict:
+    customer, item, amount = seed_orders.CATALOGUE[seed - 1]
+    return {"seed": seed, "order_id": f"OLD{seed}", "capture_id": f"OLDCAP{seed}", "capture_status": "COMPLETED",
+            "amount": rest.format_amount(amount), "currency": "USD", "customer_name": customer,
+            "customer_email": "x@example.com", "item": item}
+
+
+def test_resuming_after_the_first_30_orders_seeds_only_the_new_15(seeding: tuple) -> None:
+    fake, _ = seeding
+    seed_orders.save_fixtures([_recorded_order(seed) for seed in range(1, 31)])
+    seed_orders.seed_orders()
+    saved = json.loads(seed_orders.FIXTURES.read_text(encoding="utf-8"))
+    assert [e["seed"] for e in saved] == list(range(1, 46))
+    assert len(fake.created) == 15
+    assert saved[30]["customer_name"] == seed_orders.CATALOGUE[30][0]
+    assert all(200 <= float(e["amount"]) <= 400 for e in saved[30:])
+
+
+def test_a_fixture_that_no_longer_matches_the_catalogue_stops_the_script(seeding: tuple) -> None:
+    fake, _ = seeding
+    wrong = _recorded_order(3)
+    wrong["item"] = "Something that was reordered"
+    seed_orders.save_fixtures([wrong])
+    with pytest.raises(SystemExit, match="Append new orders"):
+        seed_orders.seed_orders()
+    assert fake.created == []
+
+
+def test_a_subscription_fixture_that_no_longer_matches_stops_the_script(seeding: tuple) -> None:
+    fake, _ = seeding
+    seed_orders.save_subscription_fixtures({"product_id": "PROD-1", "plan_id": "P-1", "subscriptions": [
+        {"seed": 1, "subscription_id": "I-OLD", "customer_name": "Someone Else"}]})
+    with pytest.raises(SystemExit, match="Append new subscribers"):
+        seed_orders.seed_subscriptions()
+    assert fake.created == []

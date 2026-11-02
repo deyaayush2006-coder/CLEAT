@@ -1,7 +1,7 @@
 """Creates the demo store's sandbox data, waiting for manual buyer approval of each item:
 
-1. 30 orders, captured and recorded in data/fixtures/orders.json.
-2. One product and one monthly plan, then subscriptions to it, checked ACTIVE with PayPal
+1. 45 orders, captured and recorded in data/fixtures/orders.json.
+2. One product and one monthly plan, then 12 subscriptions to it, checked ACTIVE with PayPal
    and recorded in data/fixtures/subscriptions.json (scenarios 06 and 10 use them).
 
 Run from the repo root:  python -m scripts.seed_orders
@@ -25,13 +25,22 @@ SUBSCRIPTION_FIXTURES = ROOT / "data" / "fixtures" / "subscriptions.json"
 PRODUCT_NAME = "Saree care service"
 PLAN_NAME = "Monthly saree care"
 PLAN_PRICE = "12.00"
-# Each approved cancellation in scenario 10 uses one up, so seed a few more than one demo needs.
+# Each approved cancellation in scenario 10 uses one up for good, so seed enough for the
+# video, rehearsals and judges trying it until judging ends. Append new rows only: a
+# subscriber's seed is its position here, and resuming relies on it.
 SUBSCRIBERS: list[tuple[str, str]] = [
     ("Meera", "Chatterjee"),
     ("Tanvi", "Dutta"),
     ("Shreya", "Sinha"),
     ("Kritika", "Sengupta"),
     ("Ankita", "Roychowdhury"),
+    ("Pooja", "Nandi"),
+    ("Ishita", "Ghosh"),
+    ("Riya", "Basu"),
+    ("Sneha", "Majumdar"),
+    ("Moumita", "Halder"),
+    ("Nandini", "Biswas"),
+    ("Debjani", "Pal"),
 ]
 
 # Fictional customers. Amounts span $15-$300 with several large orders, because the
@@ -67,6 +76,24 @@ CATALOGUE: list[tuple[str, str, str]] = [
     ("Ankita Roychowdhury", "Baluchari silk saree, festive edition", "290.00"),
     ("Prosenjit Mondal", "Handloom cotton towels, set of four", "32.00"),
     ("Labanya Sen", "Kantha quilted baby blanket", "45.00"),
+    # Added before the first seeding run: high-value orders ($200-$400) so the scenarios that
+    # need a large refundable balance (04 needs $180) keep working after many demo runs.
+    # Append new rows only: an order's seed is its position here, and resuming relies on it.
+    ("Rituparna Ghoshal", "Baluchari silk saree, wedding edition", "385.00"),
+    ("Abhijit Sanyal", "Kantha stitch silk wedding shawl", "220.00"),
+    ("Madhuja Bagchi", "Dhakai Jamdani saree, fine count", "340.00"),
+    ("Subhankar Dey", "Handwoven Tussar silk sherwani fabric", "265.00"),
+    ("Paromita Bhowmick", "Swarnachari silk saree", "310.00"),
+    ("Indranil Sarkar", "Nakshi kantha wall hanging, large", "235.00"),
+    ("Sohini Mitra", "Garad silk saree with zari border", "295.00"),
+    ("Tathagata Roy", "Hand-embroidered kantha quilt, king size", "360.00"),
+    ("Aparajita Basu", "Murshidabad silk saree, bridal", "400.00"),
+    ("Kaushik Dasgupta", "Handloom Tant saree set of three", "210.00"),
+    ("Debolina Chakraborty", "Bishnupuri silk saree with silver zari", "330.00"),
+    ("Sudipto Banerjee", "Handwoven Matka silk dhoti and stole set", "245.00"),
+    ("Anwesha Kundu", "Jamdani silk saree, heritage weave", "375.00"),
+    ("Ritwik Majumdar", "Kantha stitch silk jacket, bespoke", "280.00"),
+    ("Urmila Chowdhury", "Baluchari silk saree, Mahabharata motif", "350.00"),
 ]
 
 
@@ -78,6 +105,35 @@ def load_fixtures() -> list[dict]:
 def save_fixtures(entries: list[dict]) -> None:
     """Write the fixture file; called after every capture so an interruption loses nothing."""
     _write_json(FIXTURES, entries)
+
+
+def check_orders_match_catalogue(entries: list[dict]) -> None:
+    """Stop if a recorded order no longer matches its catalogue row.
+
+    Resuming skips catalogue rows by seed (their position), so a reordered or edited catalogue
+    would silently mismatch the fixtures. New orders must be appended to CATALOGUE.
+    """
+    for entry in entries:
+        seed = entry["seed"]
+        row = CATALOGUE[seed - 1] if 1 <= seed <= len(CATALOGUE) else None
+        recorded = (entry["customer_name"], entry["item"], entry["amount"])
+        if row is None or recorded != (row[0], row[1], rest.format_amount(row[2])):
+            raise SystemExit(
+                f"Order seed {seed} in {FIXTURES.name} is {recorded}, but CATALOGUE row {seed} is {row}. "
+                "Append new orders to the end of CATALOGUE instead of inserting or reordering them."
+            )
+
+
+def check_subscriptions_match_subscribers(entries: list[dict]) -> None:
+    """Stop if a recorded subscription no longer matches its SUBSCRIBERS row (see above)."""
+    for entry in entries:
+        seed = entry["seed"]
+        row = SUBSCRIBERS[seed - 1] if 1 <= seed <= len(SUBSCRIBERS) else None
+        if row is None or entry["customer_name"] != f"{row[0]} {row[1]}":
+            raise SystemExit(
+                f"Subscription seed {seed} in {SUBSCRIPTION_FIXTURES.name} is {entry['customer_name']!r}, but "
+                f"SUBSCRIBERS row {seed} is {row}. Append new subscribers to the end instead of reordering them."
+            )
 
 
 def ask(prompt: str) -> str:
@@ -104,6 +160,7 @@ def capture_when_approved(order_id: str) -> rest.CapturedOrder | None:
 def seed_orders() -> None:
     """Create, approve (by hand) and capture every catalogue order not yet in the fixtures."""
     entries = load_fixtures()
+    check_orders_match_catalogue(entries)
     done = {entry["seed"] for entry in entries}
     todo = [(seed, row) for seed, row in enumerate(CATALOGUE, start=1) if seed not in done]
     print(f"{len(done)} of {len(CATALOGUE)} orders already captured, {len(todo)} to go.\n")
@@ -176,6 +233,7 @@ def seed_subscriptions() -> None:
         save_subscription_fixtures(data)
         print(f"Created plan {data['plan_id']} (${PLAN_PRICE} a month).")
 
+    check_subscriptions_match_subscribers(data["subscriptions"])
     done = {entry["seed"] for entry in data["subscriptions"]}
     todo = [(seed, name) for seed, name in enumerate(SUBSCRIBERS, start=1) if seed not in done]
     print(f"{len(done)} of {len(SUBSCRIBERS)} subscriptions already active, {len(todo)} to go.\n")
