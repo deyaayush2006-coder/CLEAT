@@ -1,1 +1,55 @@
-# Render Blueprint for the hosted demo. Its services are added with the deployment.
+# Render Blueprint for the hosted demo: a paid web service (no spin-down), Postgres for
+# Cleat's records, and an hourly cron job that expires approvals held for over 24 hours.
+# Secrets are entered in the Render dashboard (sync: false), never committed.
+
+databases:
+  - name: cleat-db
+    plan: basic-256mb
+    region: oregon
+
+services:
+  - type: web
+    name: cleat
+    runtime: python
+    region: oregon
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-3.6-flash
+      - key: AGENT_RUNS_PER_HOUR
+        value: "40"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cleat-db
+          property: connectionString
+
+  - type: cron
+    name: cleat-expire-approvals
+    runtime: python
+    region: oregon
+    plan: starter
+    schedule: "0 * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m scripts.expire_stale_approvals
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cleat-db
+          property: connectionString
