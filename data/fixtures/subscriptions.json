@@ -1,0 +1,114 @@
+{
+  "product_id": "PROD-11K543376S073511F",
+  "plan_id": "P-08D76208BT438521WNLYVZXQ",
+  "subscriptions": [
+    {
+      "seed": 1,
+      "subscription_id": "I-0XT58U6CG4CH",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Meera Chatterjee",
+      "customer_email": "meera.chatterjee@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 2,
+      "subscription_id": "I-7T35D8J66W37",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Tanvi Dutta",
+      "customer_email": "tanvi.dutta@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 3,
+      "subscription_id": "I-GT68K0DM4HXJ",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Shreya Sinha",
+      "customer_email": "shreya.sinha@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 4,
+      "subscription_id": "I-LCW5AJGPRXER",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Kritika Sengupta",
+      "customer_email": "kritika.sengupta@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 5,
+      "subscription_id": "I-U087LC3NBFB6",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Ankita Roychowdhury",
+      "customer_email": "ankita.roychowdhury@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 6,
+      "subscription_id": "I-A9WBJC37K0PN",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Pooja Nandi",
+      "customer_email": "pooja.nandi@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 7,
+      "subscription_id": "I-3XBH0EX7NK6L",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Ishita Ghosh",
+      "customer_email": "ishita.ghosh@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 8,
+      "subscription_id": "I-PFSM81Y4KFH5",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Riya Basu",
+      "customer_email": "riya.basu@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 9,
+      "subscription_id": "I-VEJXNE4SHS7N",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Sneha Majumdar",
+      "customer_email": "sneha.majumdar@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 10,
+      "subscription_id": "I-6XU6XNY5PFSM",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Moumita Halder",
+      "customer_email": "moumita.halder@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 11,
+      "subscription_id": "I-6C5RMF5EAFB7",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Nandini Biswas",
+      "customer_email": "nandini.biswas@example.com",
+      "plan": "Monthly saree care"
+    },
+    {
+      "seed": 12,
+      "subscription_id": "I-GJTF3W06WPX5",
+      "plan_id": "P-08D76208BT438521WNLYVZXQ",
+      "status": "ACTIVE",
+      "customer_name": "Debjani Pal",
+      "customer_email": "debjani.pal@example.com",
+      "plan": "Monthly saree care"
+    }
+  ]
+}
