@@ -72,7 +72,7 @@ for approval, attempt in pending:
             cols = st.columns(4)
             cols[0].metric("Customer paid", money(facts.get("captured_amount")))
             cols[1].metric("Still refundable", money(facts.get("remaining_refundable")))
-            cols[2].metric("Refunded in 24 h", money(facts.get("window_total_24h")))
+            cols[2].metric("24-hour total incl. this refund", money(facts.get("window_total_24h")))
             cols[3].metric("Injection risk", facts.get("inbound_risk", "-"))
             st.caption(f"Verified with PayPal when held. Capture status: {facts.get('capture_status')}. It is checked again on approval.")
         elif "subscription_status" in facts:

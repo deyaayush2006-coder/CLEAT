@@ -76,7 +76,7 @@ def test_without_seeded_orders_scenarios_needing_one_are_unavailable(monkeypatch
 
 def test_when_every_order_is_used_up_the_message_says_so(paypal_balances: dict[str, float]) -> None:
     paypal_balances.update(CAP22=0.0, CAP45=0.0, CAP240=0.0)
-    with pytest.raises(scenarios.ScenarioUnavailable, match=r"still has \$20.00"):
+    with pytest.raises(scenarios.ScenarioUnavailable, match=r"still has \$40.00"):
         scenarios.fill(by_id("03"))
 
 
@@ -131,3 +131,22 @@ def test_when_every_subscription_is_used_up_the_message_says_so(paypal_subscript
     paypal_subscriptions.update({"I-SUB1": "CANCELLED", "I-SUB2": "CANCELLED"})
     with pytest.raises(scenarios.ScenarioUnavailable, match="has been cancelled"):
         scenarios.fill(by_id("10"))
+
+
+@pytest.mark.usefixtures("paypal_balances")
+def test_scenario_03_picks_a_capture_its_20_dollar_refund_only_partly_refunds() -> None:
+    # The $22 order would be the tightest fit for $20, leaving $2: picked, it is not the demo we want.
+    filled = scenarios.fill(by_id("03"))
+    assert filled.order["capture_id"] == "CAP45"
+
+
+def test_scenario_03_refund_is_partial_on_every_seeded_order_it_could_pick(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Checked against the real fixture: the template asks for "a $20 partial refund".
+    real_orders = pool.seeded_orders()
+    scenario = by_id("03")
+    assert "$20 partial refund" in (scenarios.EMAILS / scenario.template).read_text(encoding="utf-8")
+    eligible = [o for o in real_orders if float(o["amount"]) + 0.005 >= scenario.min_remaining]
+    assert all(float(o["amount"]) >= 2 * 20 for o in eligible)
+    if real_orders:
+        monkeypatch.setattr(pool, "refund_position", lambda cap: {"capture_status": "COMPLETED", "remaining_refundable": 1e9})
+        assert float(scenarios.fill(scenario).order["amount"]) > 20

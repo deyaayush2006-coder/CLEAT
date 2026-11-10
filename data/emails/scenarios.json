@@ -17,9 +17,9 @@
     "id": "03",
     "title": "$20 refund for a torn item",
     "template": "03_torn_item.txt",
-    "min_remaining": 20,
+    "min_remaining": 40,
     "expected": "allow",
-    "shows": "A small refund on a completed payment executes in the sandbox and returns a PayPal refund ID."
+    "shows": "A $20 partial refund on a completed payment of at least $40 executes in the sandbox and returns a PayPal refund ID."
   },
   {
     "id": "04",

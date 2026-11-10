@@ -61,7 +61,7 @@ def show_facts(facts: dict[str, Any]) -> None:
         cols[0].metric("Customer paid", money(facts.get("captured_amount")))
         cols[1].metric("Already refunded", money(facts.get("refunded_total")))
         cols[2].metric("Still refundable", money(facts.get("remaining_refundable")))
-        cols[3].metric("Refunded in 24 h", money(facts.get("window_total_24h")))
+        cols[3].metric("24-hour total incl. this refund", money(facts.get("window_total_24h")))
         st.caption(f"Capture status from PayPal: **{facts.get('capture_status')}**. Injection risk: **{facts.get('inbound_risk')}**.")
         paypal_ref("Order", facts.get("order_id"))
         paypal_ref("Capture", facts.get("capture_id"))
