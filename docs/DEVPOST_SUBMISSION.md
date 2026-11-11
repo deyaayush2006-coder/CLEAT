@@ -1,6 +1,6 @@
 # Devpost submission (draft)
 
-Fill in the demo URL and video link once they exist, and only describe what the final build does.
+**Live demo:** https://cleat-pqyb.onrender.com (free plan: the first load can take about a minute)
 
 **Tagline:** Your AI support agent can be talked into anything. Your PayPal can't.
 

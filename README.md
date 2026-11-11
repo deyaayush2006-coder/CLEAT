@@ -6,7 +6,7 @@
 
 Cleat is a spending firewall for AI customer-support agents that can issue PayPal refunds. Every PayPal action the agent attempts is checked against facts fetched from PayPal itself, decided by a deterministic policy engine, and then allowed, held for a human, or blocked. Every attempt is logged.
 
-- **Live demo:** https://cleat-pqyb.onrender.com/
+- **Live demo:** https://cleat-pqyb.onrender.com (free plan: the first load can take about a minute)
 - **Demo video:** added after recording
 
 ## The problem
@@ -97,7 +97,7 @@ The tests cover the engine, the interceptor, approvals (hash checks, expiry, re-
 
 - Sandbox only: no real money ever moves.
 - The hosted demo runs on Render's free tier: the first load after 15 idle minutes takes about a minute, and the audit log and approvals reset when the service restarts. The 24-hour refund total (rule R3) and the agent-run limits count from that local log, so they also restart from zero; per-capture over-refund checks are unaffected because they use PayPal's own refund history.
-- To stay inside Gemini's daily quota, the hosted demo allows 10 agent runs an hour and 40 a day (`AGENT_RUNS_PER_HOUR`, `AGENT_RUNS_PER_DAY`).
+- To stay inside Gemini's daily quota, the hosted demo allows 15 agent runs an hour and 40 a day (`AGENT_RUNS_PER_HOUR`, `AGENT_RUNS_PER_DAY`). When Gemini is rate-limited, Cleat waits the delay Gemini suggests and retries up to 3 times before reporting the quota error.
 - Demo orders and subscriptions are seeded once into `data/fixtures/` by hand-approving them as the sandbox buyer; Cleat checks their real balances and statuses with PayPal before each scenario. Each approved cancellation in scenario 10 uses up one seeded subscription.
 - The installed Agent Toolkit (1.1.0) has no dispute or transaction-search tools, so Cleat cannot act on disputes.
 
