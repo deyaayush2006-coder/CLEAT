@@ -1,4 +1,4 @@
-# Devpost submission (draft)
+﻿# Devpost submission (draft)
 
 **Live demo:** https://cleat-pqyb.onrender.com (free plan: the first load can take about a minute)
 
@@ -21,3 +21,7 @@
 **Built with:** Python, Streamlit, PayPal Agent Toolkit, PayPal Orders v2, PayPal Payments v2, PayPal Subscriptions v1, Google Gemini, LangChain, SQLModel, SQLite, Render, Claude Code (AI coding assistant).
 
 **AI tools and how they are used:** Gemini is the support agent, the injection classifier and the policy compiler (never the decision-maker). Claude Code was used as a coding assistant; the idea, architecture, policy design and threat model were directed and reviewed by the author.
+
+**Demo video:** https://youtu.be/qOOVDgcezs0
+
+- Kokoro (open-source text-to-speech): AI narration voice for the demo video.

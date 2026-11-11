@@ -1,4 +1,4 @@
-# Cleat
+﻿# Cleat
 
 [![tests](https://github.com/deyaayush2006-coder/CLEAT/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/deyaayush2006-coder/CLEAT/actions/workflows/tests.yml)
 
@@ -7,7 +7,7 @@
 Cleat is a spending firewall for AI customer-support agents that can issue PayPal refunds. Every PayPal action the agent attempts is checked against facts fetched from PayPal itself, decided by a deterministic policy engine, and then allowed, held for a human, or blocked. Every attempt is logged.
 
 - **Live demo:** https://cleat-pqyb.onrender.com (free plan: the first load can take about a minute)
-- **Demo video:** added after recording
+- **Demo video:** https://youtu.be/qOOVDgcezs0
 
 ## The problem
 
@@ -64,7 +64,7 @@ Gemini (model set by `LLM_MODEL`, tested with `gemini-3.6-flash`) has three role
 
 ## Quick start
 
-Requires Python 3.11+ and a free PayPal sandbox app (Developer Dashboard → Sandbox → Apps & Credentials → Create App, type **Merchant**) plus a Gemini API key.
+Requires Python 3.11+ and a free PayPal sandbox app (Developer Dashboard â†’ Sandbox â†’ Apps & Credentials â†’ Create App, type **Merchant**) plus a Gemini API key.
 
 ```bash
 python -m venv .venv && .venv\Scripts\activate      # macOS/Linux: source .venv/bin/activate
@@ -111,4 +111,5 @@ Cleat was built with Claude Code as a coding assistant. The product idea, archit
 
 ## Licence
 
-Built in October–November 2026 for the PayPal AI Hackathon. MIT, see [LICENSE](LICENSE).
+Built in Octoberâ€“November 2026 for the PayPal AI Hackathon. MIT, see [LICENSE](LICENSE).
+
