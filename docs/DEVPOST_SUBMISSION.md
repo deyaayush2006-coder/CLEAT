@@ -22,6 +22,7 @@
 
 **AI tools and how they are used:** Gemini is the support agent, the injection classifier and the policy compiler (never the decision-maker). Claude Code was used as a coding assistant; the idea, architecture, policy design and threat model were directed and reviewed by the author.
 
-**Demo video:** https://youtu.be/qOOVDgcezs0
+**Demo video:** https://youtu.be/HS29T6697qw
 
 - Kokoro (open-source text-to-speech): AI narration voice for the demo video.
+
