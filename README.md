@@ -6,7 +6,7 @@
 
 Cleat is a spending firewall for AI customer-support agents that can issue PayPal refunds. Every PayPal action the agent attempts is checked against facts fetched from PayPal itself, decided by a deterministic policy engine, and then allowed, held for a human, or blocked. Every attempt is logged.
 
-- **Live demo:** added after deployment
+- **Live demo:** https://cleat-pqyb.onrender.com/
 - **Demo video:** added after recording
 
 ## The problem
