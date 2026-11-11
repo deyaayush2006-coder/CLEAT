@@ -29,6 +29,6 @@ services:
       # Each run makes about 5 Gemini calls: 40 runs a day is about 200 requests. Keep
       # AGENT_RUNS_PER_DAY x 5 below the model's requests-per-day quota.
       - key: AGENT_RUNS_PER_HOUR
-        value: "10"
+        value: "15"
       - key: AGENT_RUNS_PER_DAY
         value: "40"

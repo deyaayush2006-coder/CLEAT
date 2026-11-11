@@ -38,9 +38,13 @@ with st.container(border=True):
     if st.button("Compile", type="primary", disabled=not text.strip(), icon=":material/auto_fix_high:"):
         with st.spinner("Gemini is drafting rules; Cleat is validating them..."):
             try:
-                from cleat.llm import get_llm
+                from cleat.llm import BUSY_MESSAGE, get_llm, on_retry
 
-                st.session_state["draft_rules"] = compile_policy(text, get_llm())
+                def show_busy(attempt: int, delay: float) -> None:
+                    st.toast(f"{BUSY_MESSAGE} (attempt {attempt + 1}, waiting {delay:.0f} s)")
+
+                with on_retry(show_busy):
+                    st.session_state["draft_rules"] = compile_policy(text, get_llm())
                 st.session_state["draft_text"] = text
                 st.session_state.pop("compile_errors", None)
             except PolicyCompileError as error:

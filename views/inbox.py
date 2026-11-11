@@ -181,10 +181,14 @@ with left:
     if st.button("Run agent", type="primary", disabled=not message.strip(), icon=":material/play_arrow:"):
         with st.status("Checking the message for prompt injection, then running the agent...", expanded=True) as status:
             try:
-                from cleat.llm import get_llm
+                from cleat.llm import BUSY_MESSAGE, get_llm, on_retry
                 from cleat.paypal.tools import raw_tools
 
-                result = run_agent(message, get_llm(), raw_tools(), customer=customer)
+                def show_busy(attempt: int, delay: float) -> None:
+                    status.update(label=f"{BUSY_MESSAGE} (attempt {attempt + 1}, waiting {delay:.0f} s)")
+
+                with on_retry(show_busy):
+                    result = run_agent(message, get_llm(), raw_tools(), customer=customer)
             except RateLimited as error:
                 status.update(label="Demo limit reached", state="error")
                 st.info(str(error), icon=":material/hourglass_top:")

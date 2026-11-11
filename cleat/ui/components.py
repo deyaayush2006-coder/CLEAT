@@ -153,5 +153,5 @@ def friendly_error(error: Exception) -> str:
     if "503" in text or "UNAVAILABLE" in text or "overloaded" in text.lower():
         return "Gemini is busy right now. Please try again in a minute."
     if "429" in text or "RESOURCE_EXHAUSTED" in text:
-        return "The Gemini quota is used up for now. Please try again later."
+        return "The Gemini quota is used up for now, even after retrying. Please try again later."
     return f"Something went wrong: {text[:300]}"
