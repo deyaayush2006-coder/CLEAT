@@ -10,3 +10,8 @@ font = "sans-serif"
 [client]
 # Hides developer-only toolbar items (such as Deploy) from people using the app.
 toolbarMode = "viewer"
+
+[server]
+# A file change on the host must never interrupt an agent run with a "Rerun" prompt.
+fileWatcherType = "none"
+runOnSave = false
