@@ -24,7 +24,7 @@ This has already gone wrong with chatbots that couldn't move money. In *Moffatt 
 
 **AI tools and how they are used:** Gemini is the support agent, the injection classifier and the policy compiler (never the decision-maker). Claude Code was used as a coding assistant; the idea, architecture, policy design and threat model were directed and reviewed by the author.
 
-**Demo video:** https://youtu.be/f69K-VFcOhc?si=DHPcVNz97NXoHbIH
+**Demo video:** https://youtu.be/f69K-VFcOhc
 
 - Kokoro (open-source text-to-speech): AI narration voice for the demo video.
 
