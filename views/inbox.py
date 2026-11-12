@@ -132,6 +132,8 @@ def show_run(run_id: str) -> None:
     steps = json.loads(run.trace_json or "[]")
     with st.container(border=True):
         st.markdown(f"**Customer message** from {run.customer or 'unknown'}")
+        # The exact email this run read, so a trace is never mistaken for another scenario's.
+        st.text(run.message)
         risk_badge(verdict.risk)
         st.caption(f"Checked before the agent read it. Evidence: {verdict.evidence}")
         if not verdict.classifier_available:
@@ -191,9 +193,12 @@ with left:
                 with on_retry(show_busy):
                     result = run_agent(message, get_llm(), raw_tools(), customer=customer)
             except RateLimited as error:
+                # Without this, the previous run's trace stays on screen beside the new email.
+                st.session_state.pop("run_id", None)
                 status.update(label="Demo limit reached", state="error")
                 st.info(str(error), icon=":material/hourglass_top:")
             except Exception as error:
+                st.session_state.pop("run_id", None)
                 status.update(label="The run failed", state="error")
                 error_state(friendly_error(error))
             else:

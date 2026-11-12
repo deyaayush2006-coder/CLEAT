@@ -113,6 +113,33 @@ def test_the_app_shell_starts_on_the_overview() -> None:
     assert app.title[0].value == "Overview"
 
 
+@pytest.mark.usefixtures("seeded_policy")
+def test_inbox_shows_the_email_each_run_read(fake_paypal: Callable[..., None]) -> None:
+    app = page("inbox")
+    app.session_state["run_id"] = record_runs(fake_paypal)
+    app.run()
+    assert any(element.value == "Please refund me." for element in app.text)
+
+
+@pytest.mark.usefixtures("seeded_policy")
+def test_a_failed_run_does_not_leave_the_previous_trace_on_screen(
+    fake_paypal: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import cleat.llm
+
+    def unavailable() -> None:
+        raise RuntimeError("503 UNAVAILABLE")
+
+    app = page("inbox")
+    app.session_state["run_id"] = record_runs(fake_paypal)
+    app.run()
+    monkeypatch.setattr(cleat.llm, "get_llm", unavailable)
+    app.button[-1].click().run()
+    assert not app.exception
+    assert "run_id" not in app.session_state
+    assert "Step 1" not in texts(app)
+
+
 def test_inbox_explains_how_to_seed_when_no_orders_exist(monkeypatch: pytest.MonkeyPatch) -> None:
     from cleat.demo import pool
 

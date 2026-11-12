@@ -98,6 +98,8 @@ def _run(session_id: str, message: str, llm: Any, tools: Sequence[BaseTool], cus
     ]
     reply = ""
     turns = 0
+    # Text the agent may legitimately take an order ID from: this email and PayPal's replies in this run.
+    seen = [message]
     for turns in range(1, MAX_STEPS + 1):
         response = model.invoke(messages)
         messages.append(response)
@@ -105,7 +107,9 @@ def _run(session_id: str, message: str, llm: Any, tools: Sequence[BaseTool], cus
             reply = reply_text(response)
             break
         for call in response.tool_calls:
-            messages.append(ToolMessage(content=_call_tool(firewall, guarded, call), tool_call_id=call["id"]))
+            content = unknown_order_error(call, seen) or _call_tool(firewall, guarded, call)
+            seen.append(content)
+            messages.append(ToolMessage(content=content, tool_call_id=call["id"]))
     return AgentResult(
         session_id=session_id,
         reply=reply or FALLBACK_REPLY,
@@ -125,6 +129,21 @@ def reply_text(message: BaseMessage) -> str:
     if not isinstance(text, str) and callable(text):
         text = text()
     return str(text or "").strip()
+
+
+def unknown_order_error(call: dict[str, Any], seen: Sequence[str]) -> str | None:
+    """Return an error for a tool call whose order_id is not in the email or an earlier tool result.
+
+    This stops the agent acting on an order ID it made up or carried over from somewhere else.
+    The call never reaches the firewall or PayPal; the model gets the error and can correct itself.
+    """
+    order_id = str(call.get("args", {}).get("order_id") or "").strip()
+    if not order_id or any(order_id.casefold() in text.casefold() for text in seen):
+        return None
+    return (
+        f"Error: the tool call was rejected before reaching PayPal: order ID {order_id} does not appear in "
+        "the customer's email. Use only order IDs the customer wrote."
+    )
 
 
 def _call_tool(firewall: Firewall, guarded: dict[str, BaseTool], call: dict[str, Any]) -> str:

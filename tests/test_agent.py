@@ -97,6 +97,33 @@ def test_a_tool_the_model_invents_is_blocked_and_logged() -> None:
     assert db.attempts()[0].tool == "wire_transfer"
 
 
+def test_an_order_id_not_in_the_email_never_reaches_paypal() -> None:
+    looked_up: list[str] = []
+    lookup = StructuredTool.from_function(
+        func=lambda order_id: looked_up.append(order_id) or json.dumps({"id": order_id, "status": "COMPLETED"}),
+        name="get_order_details", description="Look up an order.", args_schema=OrderArgs,
+    )
+    llm = ScriptedLLM(
+        structured=[LOW_RISK],
+        turns=[
+            tool_call("get_order_details", {"order_id": "5G123921MY740663V"}, "c1"),
+            tool_call("get_order_details", {"order_id": "63B10185K9869311C"}, "c2"),
+            AIMessage(content="Looking into it."),
+        ],
+    )
+    email = "The bedsheet from order 63B10185K9869311C arrived torn. Could I have a $20 refund?"
+    support_agent.run_agent(email, llm, [lookup])
+    assert looked_up == ["63B10185K9869311C"]
+    rejected = [m for m in llm.prompts[-1] if getattr(m, "tool_call_id", None) == "c1"][0]
+    assert "does not appear in the customer's email" in rejected.content
+
+
+def test_an_order_id_from_an_earlier_paypal_result_is_allowed() -> None:
+    seen = ["Please help with my order.", '{"id": "ORD9", "status": "CREATED"}']
+    assert support_agent.unknown_order_error({"name": "capture_order", "args": {"order_id": "ORD9"}}, seen) is None
+    assert support_agent.unknown_order_error({"name": "refund_capture", "args": {"capture_id": "CAP1"}}, seen) is None
+
+
 def test_the_loop_stops_after_eight_model_turns() -> None:
     lookups = [tool_call("get_order_details", {"order_id": "ORD1"}, f"c{i}") for i in range(10)]
     llm = ScriptedLLM(structured=[LOW_RISK], turns=lookups)
