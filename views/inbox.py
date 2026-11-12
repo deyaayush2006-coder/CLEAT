@@ -1,6 +1,7 @@
 """Inbox page: run the support agent on a customer email and show each firewall step."""
 
 import json
+import logging
 from typing import Any
 
 import streamlit as st
@@ -23,6 +24,8 @@ from cleat.ui.components import (
 )
 from cleat.ui.theme import DECISION_LABELS
 
+logger = logging.getLogger(__name__)
+
 page_header("Inbox", "Run the support agent on a customer email and watch the firewall check every PayPal action.")
 
 SCENARIOS = {scenario.id: scenario for scenario in load_scenarios()}
@@ -34,9 +37,24 @@ def load_scenario() -> None:
     try:
         filled = fill(scenario)
     except ScenarioUnavailable as error:
-        st.session_state.update(message="", customer="", fill_error=str(error))
+        st.session_state.update(message="", customer="", fill_error=str(error), filled_for=None)
         return
-    st.session_state.update(message=filled.message, customer=filled.customer, fill_error=None)
+    st.session_state.update(
+        message=filled.message,
+        customer=filled.customer,
+        fill_error=None,
+        filled_for=st.session_state["scenario_id"],
+    )
+
+
+def load_scenario_before_run() -> None:
+    """Refresh a stale demo scenario before the Run agent button handler executes."""
+    if (
+        st.session_state.get("message_mode") == "Demo scenario"
+        and st.session_state.get("filled_for") != st.session_state.get("scenario_id")
+    ):
+        load_scenario()
+        st.session_state["scenario_loading_notice"] = True
 
 
 def describe_action(tool: str, args: dict[str, Any]) -> str:
@@ -152,7 +170,7 @@ def show_run(run_id: str) -> None:
 left, right = st.columns([2, 3], gap="large")
 
 with left:
-    mode = st.radio("Message", ["Demo scenario", "Paste your own ticket"], horizontal=True)
+    mode = st.radio("Message", ["Demo scenario", "Paste your own ticket"], horizontal=True, key="message_mode")
     if mode == "Demo scenario":
         if "scenario_id" not in st.session_state:
             st.session_state["scenario_id"] = next(iter(SCENARIOS))
@@ -181,7 +199,16 @@ with left:
         customer = st.text_input("Customer name", placeholder="For example Priya Sen") or None
         message = st.text_area("Customer email", height=230, placeholder="Paste a support ticket here.")
 
-    if st.button("Run agent", type="primary", disabled=not message.strip(), icon=":material/play_arrow:"):
+    run_clicked = st.button(
+        "Run agent",
+        type="primary",
+        disabled=not message.strip(),
+        icon=":material/play_arrow:",
+        on_click=load_scenario_before_run,
+    )
+    if st.session_state.pop("scenario_loading_notice", False):
+        st.info("Loading this scenario's order from PayPal. Press Run agent again.")
+    elif run_clicked:
         with st.status("Checking the message for prompt injection, then running the agent...", expanded=True) as status:
             try:
                 from cleat.llm import BUSY_MESSAGE, get_llm, on_retry
@@ -198,6 +225,7 @@ with left:
                 status.update(label="Demo limit reached", state="error")
                 st.info(str(error), icon=":material/hourglass_top:")
             except Exception as error:
+                logger.exception("agent run failed")
                 st.session_state.pop("run_id", None)
                 status.update(label="The run failed", state="error")
                 error_state(friendly_error(error))

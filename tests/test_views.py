@@ -146,3 +146,39 @@ def test_inbox_explains_how_to_seed_when_no_orders_exist(monkeypatch: pytest.Mon
     monkeypatch.setattr(pool, "seeded_orders", list)
     app = page("inbox").run()
     assert "scripts.seed_orders" in texts(app)
+
+
+@pytest.mark.usefixtures("seeded_policy")
+@pytest.mark.parametrize("fill_succeeds", [True, False])
+def test_inbox_does_not_run_when_scenario_email_is_stale(
+    monkeypatch: pytest.MonkeyPatch, fill_succeeds: bool
+) -> None:
+    from types import SimpleNamespace
+
+    import cleat.agent.support_agent as support_agent
+    import cleat.demo.scenarios as scenarios
+
+    run_calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(support_agent, "run_agent", lambda *args, **kwargs: run_calls.append(args))
+
+    def fill_selected(scenario: object) -> SimpleNamespace:
+        if not fill_succeeds:
+            raise scenarios.ScenarioUnavailable("No seeded order.")
+        return SimpleNamespace(message="Fresh scenario email", customer="Fresh Customer")
+
+    monkeypatch.setattr(scenarios, "fill", fill_selected)
+
+    scenario_id = scenarios.load_scenarios()[0].id
+    app = page("inbox")
+    app.session_state["scenario_id"] = scenario_id
+    app.session_state["message"] = "Previous scenario email"
+    app.session_state["customer"] = "Previous Customer"
+    app.session_state["filled_for"] = "another-scenario"
+    app.run()
+    app.button[-1].click().run()
+
+    assert not app.exception, app.exception
+    assert run_calls == []
+    assert "Loading this scenario's order from PayPal. Press Run agent again." in texts(app)
+    assert app.session_state["filled_for"] == (scenario_id if fill_succeeds else None)
+    assert app.session_state["message"] == ("Fresh scenario email" if fill_succeeds else "")
