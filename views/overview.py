@@ -31,7 +31,7 @@ tiles[3].metric("Blocked", counts["block"])
 tiles[4].metric("$ protected", money(protected))
 
 if not attempts:
-    empty_state("No actions yet. Run a scenario on the Inbox page to see the firewall decide.")
+    empty_state("No decisions yet. Open **Inbox**, pick scenario 03, and click Run agent.")
 else:
     with st.container(border=True):
         st.subheader("Decisions over time")
@@ -54,12 +54,12 @@ else:
         latest = attempts[:10]
         table = pd.DataFrame(
             {
-                "When": a.created_at.strftime("%Y-%m-%d %H:%M UTC"),
+                "Time": a.created_at.strftime("%Y-%m-%d %H:%M UTC"),
                 "Customer": a.customer or "-",
-                "Tool": a.tool,
+                "Action": a.tool,
                 "Amount": money(a.amount),
                 "Decision": DECISION_LABELS[a.decision],
-                "Outcome": a.status,
+                "Outcome": a.status.capitalize(),
                 "Reason": a.reason,
             }
             for a in latest

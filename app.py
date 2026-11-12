@@ -33,4 +33,5 @@ navigation = st.navigation(
     ]
 )
 st.sidebar.caption(f"{settings.APP_NAME}: a spending firewall for AI support agents that touch PayPal.")
+st.sidebar.caption("Try it: Inbox → scenario 03, 05, 07, then 04 + Approve.")
 navigation.run()

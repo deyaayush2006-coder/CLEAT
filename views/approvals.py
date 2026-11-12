@@ -15,6 +15,7 @@ from cleat.ui.components import (
     page_header,
     parse_json,
     paypal_ref,
+    plain_dollars,
     status_badge,
 )
 
@@ -25,9 +26,9 @@ st.caption("Cleat executes the frozen request itself, after checking its SHA-256
 def summary(tool: str, args: dict) -> str:
     """One line describing the held action."""
     if tool == "refund_capture":
-        return f"Refund {money(float(args.get('amount', 0)))} on capture {args.get('capture_id')}"
+        return f"Refund {money(float(args.get('amount', 0)))} on capture `{args.get('capture_id')}`"
     if tool == "cancel_subscription":
-        return f"Cancel subscription {args.get('subscription_id')}"
+        return f"Cancel subscription `{args.get('subscription_id')}`"
     return tool
 
 
@@ -60,14 +61,14 @@ except Exception as error:
 
 st.subheader(f"Waiting for you ({len(pending)})")
 if not pending:
-    empty_state("No held actions: the agent is within policy.")
+    empty_state("Nothing waiting for approval. Run scenario 04 in **Inbox** to see a refund held for a human.")
 for approval, attempt in pending:
     args = json.loads(approval.args_json)
     facts = json.loads(attempt.facts_json)
     with st.container(border=True):
-        st.markdown(f"**{summary(approval.tool, args)}**")
+        st.markdown(f"**{plain_dollars(summary(approval.tool, args))}**")
         st.caption(f"Customer: {attempt.customer or 'unknown'} · held {ago(approval.created_at)} · id `{approval.id}`")
-        st.markdown(f"**Why it was held** ({attempt.rule_id or 'tier default'}): {attempt.reason}")
+        st.markdown(f"**Why it was held** ({attempt.rule_id or 'tier default'}): {plain_dollars(attempt.reason)}")
         if "captured_amount" in facts:
             cols = st.columns(4)
             cols[0].metric("Customer paid", money(facts.get("captured_amount")))
@@ -94,7 +95,7 @@ for approval, attempt in decided:
     args = json.loads(approval.args_json)
     with st.container(border=True):
         text, badge = st.columns([4, 1])
-        text.markdown(f"**{summary(approval.tool, args)}** · {attempt.customer or 'unknown'}")
+        text.markdown(f"**{plain_dollars(summary(approval.tool, args))}** · {attempt.customer or 'unknown'}")
         with badge:
             status_badge(approval.status)
         if approval.note:

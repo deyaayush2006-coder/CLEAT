@@ -16,6 +16,13 @@ STATUS_COLOURS = {
     "failed": DECISION_COLOURS["block"],
 }
 NEUTRAL = "#475569"
+# Pale fill behind each text colour, so every badge reads as the same soft pill.
+PILL_BACKGROUNDS = {
+    DECISION_COLOURS["allow"]: "#DCFCE7",
+    DECISION_COLOURS["approve"]: "#FEF3C7",
+    DECISION_COLOURS["block"]: "#FEE2E2",
+    NEUTRAL: "#E2E8F0",
+}
 
 LOGO_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="28" viewBox="0 0 96 28">'
@@ -31,8 +38,9 @@ SANDBOX_BANNER_HTML = (
 
 
 def badge_html(label: str, colour: str) -> str:
-    """Return a small static coloured label."""
+    """Return a small static pill: coloured bold text on a pale fill of the same hue."""
+    background = PILL_BACKGROUNDS.get(colour, PILL_BACKGROUNDS[NEUTRAL])
     return (
-        f'<span style="background:{colour};color:#FFFFFF;border-radius:4px;padding:2px 8px;'
-        f'font-size:0.8rem;font-weight:600;">{html.escape(label)}</span>'
+        f'<span style="background:{background};color:{colour};border-radius:999px;padding:2px 10px;'
+        f'font-size:0.85em;font-weight:700;">{html.escape(label)}</span>'
     )

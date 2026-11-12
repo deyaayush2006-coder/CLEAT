@@ -18,6 +18,7 @@ from cleat.ui.components import (
     page_header,
     parse_json,
     paypal_ref,
+    plain_dollars,
     risk_badge,
 )
 from cleat.ui.theme import DECISION_LABELS
@@ -101,13 +102,13 @@ def show_step(number: int, step: dict[str, Any]) -> None:
     attempt = db.get_attempt(step["attempt_id"])
     status = attempt.status if attempt else step.get("status", "")
     with st.container(border=True):
-        st.markdown(f"**Step {number}: proposed PayPal action**")
+        action = plain_dollars(describe_action(step["tool"], step["args"]))
+        st.markdown(f"**Step {number}: proposed PayPal action:** {action}")
         decision_and_status(decision["action"], status)
-        st.markdown(describe_action(step["tool"], step["args"]))
+        rule = decision.get("rule_id") or "tier default"
+        st.markdown(f"**Rule matched** ({rule}): {plain_dollars(decision['reason'])}")
         st.markdown("**Facts fetched before deciding**")
         show_facts(decision["facts"])
-        rule = decision.get("rule_id") or "tier default"
-        st.markdown(f"**Rule matched** ({rule}): {decision['reason']}")
         if status in {"executed", "failed"}:
             show_result(parse_json(attempt.result_json if attempt else step.get("result")))
         elif status == "held":
@@ -165,7 +166,7 @@ with left:
             on_change=load_scenario,
         )
         scenario = SCENARIOS[st.session_state["scenario_id"]]
-        st.caption(f"Expected: **{DECISION_LABELS[scenario.expected]}**. {scenario.shows}")
+        st.caption(f"Expected: **{DECISION_LABELS[scenario.expected]}**. {plain_dollars(scenario.shows)}")
         if st.session_state.get("fill_error"):
             st.warning(
                 f"{st.session_state['fill_error']} Seed sandbox data with `python -m scripts.seed_orders`, "

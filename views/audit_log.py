@@ -18,18 +18,18 @@ except Exception as error:
     st.stop()
 
 if not attempts:
-    empty_state("Nothing logged yet. Every action the agent tries is recorded here, including blocked ones.")
+    empty_state("No decisions yet. Open **Inbox**, pick scenario 03, and click Run agent.")
     st.stop()
 
 frame = pd.DataFrame(
     {
         "ID": a.id,
-        "When (UTC)": a.created_at.replace(tzinfo=None),
+        "Time (UTC)": a.created_at.replace(tzinfo=None),
         "Customer": a.customer or "",
-        "Tool": a.tool,
+        "Action": a.tool,
         "Tier": a.tier,
         "Decision": DECISION_LABELS[a.decision],
-        "Outcome": a.status,
+        "Outcome": a.status.capitalize(),
         "Amount": a.amount,
         "Rule": a.rule_id or "tier default",
         "Reason": a.reason,
@@ -39,20 +39,20 @@ frame = pd.DataFrame(
 
 filters = st.columns(4)
 decisions = filters[0].multiselect("Decision", list(DECISION_LABELS.values()))
-tools = filters[1].multiselect("Tool", sorted(frame["Tool"].unique()))
+tools = filters[1].multiselect("Action", sorted(frame["Action"].unique()))
 tiers = filters[2].multiselect("Tier", sorted(frame["Tier"].unique()))
-first, last = frame["When (UTC)"].min().date(), frame["When (UTC)"].max().date()
+first, last = frame["Time (UTC)"].min().date(), frame["Time (UTC)"].max().date()
 dates = filters[3].date_input("Dates", (first, last), min_value=first, max_value=last)
 
 shown = frame
 if decisions:
     shown = shown[shown["Decision"].isin(decisions)]
 if tools:
-    shown = shown[shown["Tool"].isin(tools)]
+    shown = shown[shown["Action"].isin(tools)]
 if tiers:
     shown = shown[shown["Tier"].isin(tiers)]
 if isinstance(dates, tuple) and len(dates) == 2:
-    days = shown["When (UTC)"].dt.date
+    days = shown["Time (UTC)"].dt.date
     shown = shown[(days >= dates[0]) & (days <= dates[1])]
 
 st.caption(f"{len(shown)} of {len(frame)} actions. Select a row for its facts, arguments and PayPal result.")

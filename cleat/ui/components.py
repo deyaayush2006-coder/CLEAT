@@ -82,6 +82,11 @@ def money(amount: float | None) -> str:
     return "-" if amount is None else f"${amount:,.2f}"
 
 
+def plain_dollars(text: str) -> str:
+    """Escape dollar signs so Streamlit markdown shows '$20 ... $40' as text, not as LaTeX math."""
+    return text.replace("$", r"\$")
+
+
 def ago(moment: datetime) -> str:
     """Describe how long ago a UTC time was, for example '5 min ago'."""
     from cleat.store.db import utcnow
