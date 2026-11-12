@@ -16,7 +16,7 @@ This has already gone wrong with chatbots that couldn't move money. In *Moffatt 
 
 **Accomplishments:** A firewall decision path that is pure, tested Python; PayPal IDs visible in every step; an over-refund blocked from PayPal's own figures whatever the customer claims.
 
-**What we learned:** Treat every number an agent asserts as untrusted, and verify it at the source.
+**What I learned:** Treat every number an agent asserts as untrusted, and verify it at the source.
 
 **What's next:** Dispute tools once the toolkit supports them, per-customer limits, and webhook-driven refund history.
 
