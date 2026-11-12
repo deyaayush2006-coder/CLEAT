@@ -107,21 +107,28 @@ def test_an_order_id_not_in_the_email_never_reaches_paypal() -> None:
         structured=[LOW_RISK],
         turns=[
             tool_call("get_order_details", {"order_id": "5G123921MY740663V"}, "c1"),
-            tool_call("get_order_details", {"order_id": "63B10185K9869311C"}, "c2"),
+            # Retrying must not pass just because the rejection message echoed the ID back.
+            tool_call("get_order_details", {"order_id": "5G123921MY740663V"}, "c2"),
+            # A fragment of the real ID is not the real ID.
+            tool_call("get_order_details", {"order_id": "63B"}, "c3"),
+            tool_call("get_order_details", {"order_id": "63B10185K9869311C"}, "c4"),
             AIMessage(content="Looking into it."),
         ],
     )
     email = "The bedsheet from order 63B10185K9869311C arrived torn. Could I have a $20 refund?"
     support_agent.run_agent(email, llm, [lookup])
     assert looked_up == ["63B10185K9869311C"]
-    rejected = [m for m in llm.prompts[-1] if getattr(m, "tool_call_id", None) == "c1"][0]
-    assert "does not appear in the customer's email" in rejected.content
+    replies = {m.tool_call_id: m.content for m in llm.prompts[-1] if hasattr(m, "tool_call_id")}
+    assert all("does not appear in the customer's email" in replies[c] for c in ("c1", "c2", "c3"))
 
 
-def test_an_order_id_from_an_earlier_paypal_result_is_allowed() -> None:
-    seen = ["Please help with my order.", '{"id": "ORD9", "status": "CREATED"}']
-    assert support_agent.unknown_order_error({"name": "capture_order", "args": {"order_id": "ORD9"}}, seen) is None
-    assert support_agent.unknown_order_error({"name": "refund_capture", "args": {"capture_id": "CAP1"}}, seen) is None
+def test_only_successful_paypal_results_add_usable_order_ids() -> None:
+    known = support_agent.id_tokens("Please help with my order.")
+    known |= support_agent.paypal_result_ids('{"id": "ORD9", "status": "CREATED"}')
+    known |= support_agent.paypal_result_ids("Error: order ORD7 was not found")
+    assert support_agent.unknown_order_error({"name": "capture_order", "args": {"order_id": "ORD9"}}, known) is None
+    assert support_agent.unknown_order_error({"name": "capture_order", "args": {"order_id": "ORD7"}}, known)
+    assert support_agent.unknown_order_error({"name": "refund_capture", "args": {"capture_id": "CAP1"}}, known) is None
 
 
 def test_the_loop_stops_after_eight_model_turns() -> None:

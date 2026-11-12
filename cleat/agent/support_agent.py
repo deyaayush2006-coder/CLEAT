@@ -6,6 +6,7 @@ call visibly passes through the firewall and the trace records exactly what happ
 """
 
 import json
+import re
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -98,8 +99,8 @@ def _run(session_id: str, message: str, llm: Any, tools: Sequence[BaseTool], cus
     ]
     reply = ""
     turns = 0
-    # Text the agent may legitimately take an order ID from: this email and PayPal's replies in this run.
-    seen = [message]
+    # IDs the agent may act on: tokens in this email and in PayPal's successful replies in this run.
+    known = id_tokens(message)
     for turns in range(1, MAX_STEPS + 1):
         response = model.invoke(messages)
         messages.append(response)
@@ -107,8 +108,10 @@ def _run(session_id: str, message: str, llm: Any, tools: Sequence[BaseTool], cus
             reply = reply_text(response)
             break
         for call in response.tool_calls:
-            content = unknown_order_error(call, seen) or _call_tool(firewall, guarded, call)
-            seen.append(content)
+            rejection = unknown_order_error(call, known)
+            content = rejection or _call_tool(firewall, guarded, call)
+            if rejection is None:
+                known |= paypal_result_ids(content)
             messages.append(ToolMessage(content=content, tool_call_id=call["id"]))
     return AgentResult(
         session_id=session_id,
@@ -131,14 +134,36 @@ def reply_text(message: BaseMessage) -> str:
     return str(text or "").strip()
 
 
-def unknown_order_error(call: dict[str, Any], seen: Sequence[str]) -> str | None:
-    """Return an error for a tool call whose order_id is not in the email or an earlier tool result.
+_ID_TOKEN = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def id_tokens(text: str) -> set[str]:
+    """Return every ID-shaped token in a piece of text, for exact matching."""
+    return set(_ID_TOKEN.findall(text))
+
+
+def paypal_result_ids(output: str) -> set[str]:
+    """Return the ID tokens in a successful PayPal result, which the firewall passes on as JSON.
+
+    Errors, HELD and BLOCKED messages are plain text and can echo the agent's own arguments back,
+    so learning IDs from them would let a rejected ID pass on a retry.
+    """
+    try:
+        json.loads(output)
+    except ValueError:
+        return set()
+    return id_tokens(output)
+
+
+def unknown_order_error(call: dict[str, Any], known: set[str]) -> str | None:
+    """Return an error for a tool call whose order_id is not in the email or an earlier PayPal result.
 
     This stops the agent acting on an order ID it made up or carried over from somewhere else.
-    The call never reaches the firewall or PayPal; the model gets the error and can correct itself.
+    The match is exact and case-sensitive, so a fragment of a real ID does not pass. The call never
+    reaches the firewall or PayPal; the model gets the error and can correct itself.
     """
     order_id = str(call.get("args", {}).get("order_id") or "").strip()
-    if not order_id or any(order_id.casefold() in text.casefold() for text in seen):
+    if not order_id or order_id in known:
         return None
     return (
         f"Error: the tool call was rejected before reaching PayPal: order ID {order_id} does not appear in "
