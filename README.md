@@ -115,6 +115,8 @@ The tests cover the engine, the interceptor, approvals (hash checks, expiry, re-
 
 Python, Streamlit, PayPal Agent Toolkit, PayPal Orders v2 and Payments v2 (sandbox), Google Gemini, LangChain, SQLModel, Render. Licences: [THIRD_PARTY.md](THIRD_PARTY.md).
 
+**Why `paypal-agent-toolkit` is pinned to 1.1.0:** version 1.11.0 renames `capture_order` to `pay_order` and pulls in LangChain 0.3, which broke the agent's tool loop. All dependencies are locked in `requirements.txt` (generated with `uv pip compile` from `requirements.in`) and CI installs them from scratch on every push. Upgrading is on the roadmap.
+
 ## AI-assisted development
 
 Cleat was built with Claude Code as a coding assistant. The product idea, architecture, policy design, threat model and all integration decisions were directed and reviewed by the author.
