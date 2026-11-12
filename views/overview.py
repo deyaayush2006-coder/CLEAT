@@ -1,7 +1,5 @@
 """Overview page: decision metrics, recent decisions and the demo-data reset."""
 
-import os
-
 import pandas as pd
 import streamlit as st
 
@@ -11,8 +9,6 @@ from cleat.ui.components import empty_state, error_state, friendly_error, money,
 from cleat.ui.theme import DECISION_COLOURS, DECISION_LABELS
 
 page_header("Overview", "What the firewall has decided on every PayPal action the support agent tried.")
-if os.getenv("RENDER"):
-    st.caption("Hosted demo: the first load can take a moment.")
 
 try:
     attempts = db.attempts()
