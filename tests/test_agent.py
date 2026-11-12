@@ -126,8 +126,12 @@ def test_only_successful_paypal_results_add_usable_order_ids() -> None:
     known = support_agent.id_tokens("Please help with my order.")
     known |= support_agent.paypal_result_ids('{"id": "ORD9", "status": "CREATED"}')
     known |= support_agent.paypal_result_ids("Error: order ORD7 was not found")
+    # Free text the agent wrote, echoed back inside a successful result, must not become an allowed ID.
+    known |= support_agent.paypal_result_ids('{"refund_id": "REF1", "reason": "ORD8", "links": [{"id": "ORD6"}]}')
     assert support_agent.unknown_order_error({"name": "capture_order", "args": {"order_id": "ORD9"}}, known) is None
+    assert support_agent.unknown_order_error({"name": "capture_order", "args": {"order_id": "ORD6"}}, known) is None
     assert support_agent.unknown_order_error({"name": "capture_order", "args": {"order_id": "ORD7"}}, known)
+    assert support_agent.unknown_order_error({"name": "capture_order", "args": {"order_id": "ORD8"}}, known)
     assert support_agent.unknown_order_error({"name": "refund_capture", "args": {"capture_id": "CAP1"}}, known) is None
 
 

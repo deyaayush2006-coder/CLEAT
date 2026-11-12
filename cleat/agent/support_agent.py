@@ -143,16 +143,32 @@ def id_tokens(text: str) -> set[str]:
 
 
 def paypal_result_ids(output: str) -> set[str]:
-    """Return the ID tokens in a successful PayPal result, which the firewall passes on as JSON.
+    """Return the IDs PayPal issued in a successful result: the values of its "id" fields.
 
+    Only JSON reaches the agent from an executed call (the firewall marks other output as failed).
     Errors, HELD and BLOCKED messages are plain text and can echo the agent's own arguments back,
-    so learning IDs from them would let a rejected ID pass on a retry.
+    and free-text fields such as a refund reason hold whatever the agent wrote, so neither is
+    trusted as a source of IDs.
     """
     try:
-        json.loads(output)
+        data = json.loads(output)
     except ValueError:
         return set()
-    return id_tokens(output)
+    found: set[str] = set()
+
+    def collect(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "id" and isinstance(value, str):
+                    found.add(value)
+                else:
+                    collect(value)
+        elif isinstance(node, list):
+            for item in node:
+                collect(item)
+
+    collect(data)
+    return found
 
 
 def unknown_order_error(call: dict[str, Any], known: set[str]) -> str | None:
